@@ -32,7 +32,7 @@
   #rail path { fill:none; stroke:url(#railgrad); stroke-width:1.6; opacity:.7; }
   @media (max-width: 900px) { #rail { display:none; } }
 
-  section { position:relative; z-index:2; padding:16vh 2rem; max-width:46rem; margin:0 auto; }
+  section { position:relative; z-index:2; padding:12vh 2rem; max-width:46rem; margin:0 auto; }
   @media (min-width: 900px) { section { margin-left:max(2rem, calc(50vw - 26rem)); } }
 
   /* hero */
@@ -52,18 +52,55 @@
   #megCanvas { width:100%; height:180px; display:block; margin:1.6rem 0 .3rem; }
   .caption { color:var(--faint); font-size:.78rem; margin-bottom:1rem; }
 
-  /* timeline */
-  .tl { margin-top:2rem; border-left:1px solid #232838; }
-  .tl-item { position:relative; padding:0 0 2.2rem 1.8rem; }
-  .tl-item::before {
-    content:""; position:absolute; left:-5px; top:.45em; width:9px; height:9px;
-    border-radius:50%; background:var(--bg); border:2px solid var(--accent);
+  /* experience cards */
+  .xp {
+    position:relative; display:flex; gap:1.4rem; align-items:flex-start;
+    border:1px solid #232838; border-radius:16px; padding:1.5rem 1.6rem;
+    margin-top:1.2rem; background:linear-gradient(160deg, rgba(15,17,26,.8), rgba(10,12,18,.55));
+    transition:border-color .3s, box-shadow .3s;
   }
-  .tl-item[data-el="water"]::before { border-color:var(--water); }
-  .tl-item[data-el="air"]::before { border-color:var(--air); }
-  .tl-item .when { color:var(--faint); font-size:.8rem; letter-spacing:.08em; }
-  .tl-item .where { font-size:1.1rem; font-weight:600; margin:.15rem 0; }
-  .tl-item .what { color:var(--dim); line-height:1.6; font-size:.95rem; }
+  .xp:hover { border-color:rgba(110,168,255,.8); box-shadow:0 0 26px rgba(110,168,255,.14), inset 0 0 30px rgba(110,168,255,.05); }
+  .xp[data-el="water"]:hover { border-color:rgba(56,163,165,.85); box-shadow:0 0 26px rgba(56,163,165,.16), inset 0 0 30px rgba(56,163,165,.05); }
+  .xp[data-el="air"]:hover { border-color:rgba(224,195,252,.75); box-shadow:0 0 26px rgba(224,195,252,.13), inset 0 0 30px rgba(224,195,252,.05); }
+  .xp .badge {
+    flex:0 0 auto; width:3.6rem; height:3.6rem; border-radius:14px;
+    display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow:0 4px 18px rgba(110,168,255,.25); will-change:transform;
+  }
+  .xp[data-el="water"] .badge { background:linear-gradient(135deg, var(--water), var(--accent)); box-shadow:0 4px 18px rgba(56,163,165,.25); }
+  .xp[data-el="air"] .badge { background:linear-gradient(135deg, var(--accent2), var(--air)); box-shadow:0 4px 18px rgba(180,140,232,.25); }
+  .xp .body { flex:1; min-width:0; }
+  .xp .when { color:var(--faint); font-size:.75rem; letter-spacing:.16em; text-transform:uppercase; }
+  .xp .where { font-size:1.25rem; font-weight:650; margin:.25rem 0 .4rem; }
+  .xp .what { color:var(--dim); line-height:1.6; font-size:.95rem; }
+  .chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.8rem; }
+  .chip {
+    font-size:.72rem; letter-spacing:.04em; color:#aab1c8; white-space:nowrap;
+    border:1px solid #2b3147; border-radius:999px; padding:.22rem .7rem;
+    background:rgba(110,168,255,.07);
+  }
+  @media (max-width:600px) { .xp { flex-direction:column; gap:.9rem; } }
+
+  /* publications */
+  .pub {
+    border:1px solid #232838; border-radius:12px; padding:1.15rem 1.3rem; margin-top:1rem;
+    background:rgba(13,15,22,.5); transition:border-color .25s, transform .25s;
+  }
+  .pub:hover { border-color:var(--accent2); transform:translateY(-2px); }
+  .pub .ptitle { font-weight:600; line-height:1.45; }
+  .pub .authors { color:var(--dim); font-size:.85rem; line-height:1.55; margin:.4rem 0 .55rem; }
+  .pub .authors b { color:var(--fg); font-weight:650; }
+  .pub .venue {
+    display:inline-block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent2); border:1px solid rgba(180,140,232,.35); border-radius:999px; padding:.18rem .65rem;
+  }
+  .ghostbtn {
+    display:inline-block; margin:.2rem 0 .4rem; font-size:.85rem;
+    border:1px solid #2b3147; border-radius:999px; padding:.42rem 1.05rem; color:var(--accent);
+    transition:border-color .25s, background .25s;
+  }
+  .ghostbtn:hover { border-color:var(--accent); background:rgba(110,168,255,.08); text-decoration:none; }
 
   /* cards */
   .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:1rem; margin-top:1.6rem; }
@@ -120,7 +157,7 @@
 <section id="mind">
   <div class="kicker">the mind · now</div>
   <h3>Decoding <b>covert speech</b> from MEG</h3>
-  <p class="lead">My PhD (ENS Paris · NeuroSpin, CEA) asks a simple question with a hard answer:
+  <p class="lead">My PhD (ENS-PSL · NeuroSpin, CEA · Meta AI) asks a simple question with a hard answer:
   when you read, listen, or speak silently in your head, what do the magnetic fields around
   your skull give away? I build decoding pipelines over naturalistic language — audiobooks,
   stories, produced sentences — to find which levels of language (sound, words, syntax,
@@ -133,7 +170,22 @@
   <div class="kicker">the journey</div>
   <h3>From <b>water</b> to <b>sky</b></h3>
   <p class="lead">Each stop added one layer: vision, brains, scale, speed — then altitude.</p>
-  <div class="tl" id="timeline"></div>
+  <div id="xpCards"></div>
+</section>
+
+<section id="pubs">
+  <div class="kicker">signals sent</div>
+  <h3>Papers &amp; <b>preprints</b></h3>
+  <p class="lead">Decoding words and sentences from non-invasive brain recordings — and the open tooling to do it at scale.</p>
+  <a class="ghostbtn reveal" href="https://scholar.google.com/citations?user=GvwZQ5oAAAAJ" target="_blank" rel="noopener">Google Scholar →</a>
+  <div id="pubCards"></div>
+</section>
+
+<section id="projects">
+  <div class="kicker">built things</div>
+  <h3>Side projects that <b>shipped</b></h3>
+  <p class="lead">Mostly wind, waves and brains — the recurring theme was not planned.</p>
+  <div class="cards" id="projectCards"></div>
 </section>
 
 <section id="interests">
@@ -165,25 +217,61 @@
 /* ================= CONTENT — edit these arrays, git push, done ================= */
 
 const TIMELINE = [
-  { when: "2020 · Inria", el: "water", where: "Computer vision & robotics navigation",
-    what: "First research internship: teaching machines to see and move through the world." },
-  { when: "2021 · CRNL, Lyon", el: "water", where: "Brain–computer interfaces",
-    what: "Motor prediction from neural signals — first contact with reading intentions out of brains." },
-  { when: "2022 · LetsGetChecked", el: "water", where: "Data science, AWS",
-    what: "Health data at industrial scale; learned to ship, not just prototype." },
-  { when: "2022–23 · CEA NeuroSpin", el: "mind", where: "MEG & language",
-    what: "Joined the magnetically shielded rooms: language decoding from MEG, naturalistic stimuli." },
-  { when: "2023 · Neuralk AI", el: "air", where: "Startup ML engineering",
-    what: "Early-stage speed: building ML products when everything is on fire, pleasantly." },
-  { when: "2024–now · PhD, ENS Paris / NeuroSpin (CEA)", el: "air", where: "Decoding covert & imagined speech",
-    what: "The altitude view: how language is represented in brains and in language models, and what transfers between reading, listening and inner speech." },
+  { when: "2020 · Inria", el: "water", icon: "👁️", where: "Computer vision & robotics navigation",
+    what: "First research internship: teaching machines to see and move through the world.",
+    chips: ["computer vision", "robot navigation", "first research"] },
+  { when: "2021 · CRNL, Lyon", el: "water", icon: "🧠", where: "Brain–computer interfaces",
+    what: "Motor prediction from neural signals — first contact with reading intentions out of brains.",
+    chips: ["BCI", "motor decoding", "neural signals"] },
+  { when: "2022 · LetsGetChecked", el: "water", icon: "📊", where: "Data science, AWS",
+    what: "Health data at industrial scale; learned to ship, not just prototype.",
+    chips: ["health data", "AWS", "production ML"] },
+  { when: "2022–23 · CEA NeuroSpin", el: "mind", icon: "🧲", where: "MEG & language",
+    what: "Joined the magnetically shielded rooms: language decoding from MEG, naturalistic stimuli.",
+    chips: ["MEG", "language decoding", "naturalistic stimuli"] },
+  { when: "2023 · Neuralk AI", el: "air", icon: "🚀", where: "Startup ML engineering",
+    what: "Early-stage speed: building ML products when everything is on fire, pleasantly.",
+    chips: ["startup pace", "ML engineering", "0→1 products"] },
+  { when: "2024–now · PhD — ENS-PSL × NeuroSpin (CEA) × Meta AI", el: "air", icon: "🎓", where: "Decoding covert & imagined speech",
+    what: "The altitude view: how language is represented in brains vs LLMs, and what transfers between reading, listening and inner speech — in collaboration with Meta AI on large-scale MEG decoding.",
+    chips: ["covert speech", "brains × LLMs", "Meta AI collaboration"] },
+];
+
+const PUBS = [
+  { title: "Towards decoding individual words from non-invasive brain recordings",
+    authors: "S. d'Ascoli, <b>C. Bel</b>, J. Rapin, H. Banville, Y. Benchetrit, C. Pallier, J-R. King",
+    venue: "Nature Communications", year: "2025" },
+  { title: "Decoding individual words from non-invasive brain recordings across 723 participants",
+    authors: "S. d'Ascoli, <b>C. Bel</b>, J. Rapin, H. Banville, Y. Benchetrit, C. Pallier, J-R. King",
+    venue: "arXiv", year: "2024" },
+  { title: "NeuralSet: A High-Performing Python Package for Neuro-AI",
+    authors: "J-R. King, <b>C. Bel</b>, L. Evanson, J. Gadonneix, S. Houhamdi, J. Lévy, J. Raugel, et al.",
+    venue: "arXiv", year: "2026" },
+  { title: "Accurate Decoding of Natural Sentences from Non-Invasive Brain Recordings",
+    authors: "M-L. Zhang, J. Lévy, C. Rommel, J. Rapin, <b>C. Bel</b>, J. Bonnaire, D. Nieto, et al.",
+    venue: "", year: "2026" },
+];
+
+const PROJECTS = [
+  { emoji: "🌬️", title: "downthewind", url: "https://downthewind.com",
+    text: "Wing & SUP-foil downwind runs of France on an interactive wind map." },
+  { emoji: "🌊", title: "wind.corentinbel", url: "https://wind.corentinbel.com",
+    text: "Live wind & wave model explorer, à la Windy." },
+  { emoji: "🤖", title: "reachyng-for-the-stars", url: "https://github.com/BelCorentin/reachyng-for-the-stars",
+    text: "Reachy Mini robot companion experiments for Alzheimer care." },
+  { emoji: "🧰", title: "neuralset ecosystem", url: "https://github.com/BelCorentin",
+    text: "Open-source Python tooling for neuro-AI — see the NeuralSet paper above." },
 ];
 
 const INTERESTS = [
   { emoji: "🍄", title: "Psychedelics & consciousness",
-    text: 'What altered states reveal about conscious access — following Lucie Berkovitch\'s work on psychedelics and psychiatry.' },
+    text: 'What altered states reveal about conscious access — hear <a href="https://www.radiofrance.fr/franceculture/podcasts/questions-du-soir-le-debat/comment-les-psychedeliques-peuvent-ils-renouveler-le-soin-2565933" target="_blank" rel="noopener">Lucie Berkovitch on France Culture</a> on psychedelics renewing psychiatric care.' },
   { emoji: "🕸️", title: "Mapping the social web",
     text: 'Political communities and information flow modelled at scale — <a href="https://politoscope.org" target="_blank" rel="noopener">David Chavalarias\' Politoscope</a>.' },
+  { emoji: "🚪", title: "OpenPortability",
+    text: 'Your social graph should be yours to carry — <a href="https://openportability.org" target="_blank" rel="noopener">OpenPortability</a> (HelloQuitteX), David Chavalarias\' project for leaving closed platforms without losing your network.' },
+  { emoji: "❄️", title: "Tor Snowflake",
+    text: 'Supporting censorship circumvention by running <a href="https://snowflake.torproject.org" target="_blank" rel="noopener">Snowflake proxies</a> — spare bandwidth as a public good.' },
   { emoji: "🤖", title: "Robots for memory care",
     text: 'Reachy Mini as a companion for Alzheimer\'s patients — my side project <a href="https://github.com/BelCorentin/reachyng-for-the-stars" target="_blank" rel="noopener">reachyng-for-the-stars</a>.' },
 ];
@@ -197,11 +285,29 @@ const PASSIONS = [
 
 /* ================= render ================= */
 
-document.getElementById("timeline").innerHTML = TIMELINE.map(t => `
-  <div class="tl-item reveal" data-el="${t.el}">
-    <div class="when">${t.when}</div>
-    <div class="where">${t.where}</div>
-    <div class="what">${t.what}</div>
+document.getElementById("xpCards").innerHTML = TIMELINE.map(t => `
+  <div class="xp" data-el="${t.el}">
+    <div class="badge">${t.icon}</div>
+    <div class="body">
+      <div class="when">${t.when}</div>
+      <div class="where">${t.where}</div>
+      <div class="what">${t.what}</div>
+      <div class="chips">${t.chips.map(c => `<span class="chip">${c}</span>`).join("")}</div>
+    </div>
+  </div>`).join("");
+
+document.getElementById("pubCards").innerHTML = PUBS.map(p => `
+  <div class="pub reveal">
+    <div class="ptitle">${p.title}</div>
+    <div class="authors">${p.authors}</div>
+    <span class="venue">${p.venue ? p.venue + " · " : ""}${p.year}</span>
+  </div>`).join("");
+
+document.getElementById("projectCards").innerHTML = PROJECTS.map(p => `
+  <div class="card reveal">
+    <div class="emoji">${p.emoji}</div>
+    <h4><a href="${p.url}" target="_blank" rel="noopener">${p.title}</a></h4>
+    <p>${p.text}</p>
   </div>`).join("");
 
 const card = c => `
@@ -305,6 +411,7 @@ document.getElementById("passionCards").innerHTML = PASSIONS.map(card).join("");
 /* ================= signal rail: brainwave → thermals → ripples, drawn on scroll ================= */
 
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let railTween = null;
 
 function buildRail() {
   const svg = document.getElementById("rail");
@@ -317,6 +424,8 @@ function buildRail() {
     { el: document.getElementById("hero"),      p: [0.008, 10, 0]  },   // calm
     { el: document.getElementById("mind"),      p: [0.15,  22, 14] },   // jagged EEG
     { el: document.getElementById("journey"),   p: [0.012, 34, 0]  },   // thermals, long smooth
+    { el: document.getElementById("pubs"),      p: [0.09,  16, 8]  },   // dense bursts
+    { el: document.getElementById("projects"),  p: [0.02,  28, 2]  },   // rolling swell
     { el: document.getElementById("interests"), p: [0.03,  18, 3]  },   // mixed
     { el: document.getElementById("passions"),  p: [0.05,  26, 0]  },   // ripples
   ].map(b => ({ mid: b.el.offsetTop + b.el.offsetHeight/2, p: b.p }));
@@ -346,7 +455,7 @@ function buildRail() {
   const len = path.getTotalLength();
   path.style.strokeDasharray = len;
   path.style.strokeDashoffset = reduced ? 0 : len;
-  if (!reduced) gsap.to(path.style, {
+  if (!reduced) railTween = gsap.to(path.style, {
     strokeDashoffset: 0, ease: "none",
     scrollTrigger: { trigger: document.body, start: "top top", end: "bottom bottom", scrub: 0.6 }
   });
@@ -354,13 +463,28 @@ function buildRail() {
 
 gsap.registerPlugin(ScrollTrigger);
 buildRail();
-addEventListener("resize", () => { ScrollTrigger.getAll().forEach(s => s.kill()); buildRail(); });
+addEventListener("resize", () => {
+  if (railTween) { if (railTween.scrollTrigger) railTween.scrollTrigger.kill(); railTween.kill(); railTween = null; }
+  buildRail();
+  ScrollTrigger.refresh();
+});
 
 if (!reduced) {
   gsap.utils.toArray("section").forEach(sec => {
     gsap.from(sec.querySelectorAll(".kicker, h3, .lead, .reveal, #megCanvas, .caption"), {
       opacity: 0, y: 26, duration: 0.7, stagger: 0.08, ease: "power2.out",
       scrollTrigger: { trigger: sec, start: "top 72%" }
+    });
+  });
+  // experience cards: alternate slide-in + badge parallax
+  gsap.utils.toArray(".xp").forEach((el, i) => {
+    gsap.from(el, {
+      opacity: 0, x: i % 2 ? 64 : -64, duration: 0.8, ease: "power2.out",
+      scrollTrigger: { trigger: el, start: "top 84%" }
+    });
+    gsap.fromTo(el.querySelector(".badge"), { y: 16 }, {
+      y: -16, ease: "none",
+      scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: true }
     });
   });
 }
