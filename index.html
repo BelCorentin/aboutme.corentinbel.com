@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>about · Corentin Bel</title>
+<meta name="description" content="Corentin Bel — ML & neuroscience researcher, brain decoding.">
+<style>
+  :root { --bg:#07080c; --fg:#e8e6df; --dim:#8a8fa3; --accent:#6ea8ff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font-family:ui-sans-serif,system-ui,sans-serif; min-height:100vh; }
+  header {
+    display:flex; justify-content:space-between; align-items:baseline; padding:1.4rem 2rem;
+  }
+  h1 { font-weight:300; font-size:1.4rem; letter-spacing:.06em; }
+  h1 b { font-weight:600; }
+  header a { color:var(--dim); text-decoration:none; font-size:.9rem; }
+  header a:hover { color:var(--accent); }
+  #meg { display:block; width:100%; height:260px; }
+  main { max-width:44rem; margin:0 auto; padding:2rem; line-height:1.75; }
+  main p { margin-bottom:1.1rem; color:#c9c7bf; }
+  main b { color:var(--fg); font-weight:600; }
+  .caption { text-align:center; color:#4a4f61; font-size:.78rem; margin-top:-.8rem; margin-bottom:2.2rem; }
+  .links { margin-top:2rem; display:flex; gap:1.4rem; flex-wrap:wrap; }
+  .links a { color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
+  .links a:hover { border-bottom-color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1><b>about</b>me.corentinbel.com</h1>
+  <a href="https://corentinbel.com">← home</a>
+</header>
+
+<canvas id="meg"></canvas>
+<div class="caption">live fake MEG — 24 sensors, an evoked response every few seconds. hover to perturb.</div>
+
+<main>
+  <p>Hi, I'm <b>Corentin Bel</b>. I'm a researcher working on <b>decoding language from
+  brain activity</b> — figuring out what the brain is doing when we read, listen, and
+  speak (out loud or silently), using MEG, EEG and fMRI.</p>
+
+  <p>I work at <b>NeuroSpin (CEA)</b> near Paris, on covert and imagined speech decoding
+  with naturalistic language stimuli: people listening to audiobooks, reading stories,
+  producing sentences — and machine-learning pipelines that try to read the words back
+  out of the magnetoencephalography signal.</p>
+
+  <p>The animation above is what raw-ish MEG looks like: dozens of sensors, oscillations
+  everywhere, and — when a stimulus lands — a small, reliable wave buried inside.
+  Most of my work is convincing that wave to give up what it knows.</p>
+
+  <p>This site is my playground: <a href="https://lab.corentinbel.com" style="color:var(--accent);text-decoration:none">experiments</a> with brain visualisation and
+  in-browser science, and some <a href="https://art.corentinbel.com" style="color:var(--accent);text-decoration:none">generative art</a>.</p>
+
+  <div class="links">
+    <a href="https://github.com/BelCorentin">github</a>
+    <a href="mailto:corentin@corentinbel.com">email</a>
+  </div>
+</main>
+
+<script>
+// Butterfly-plot MEG animation: 24 channels of pink-ish noise + alpha rhythm,
+// periodic evoked response (M100-like), mouse hover injects a disturbance.
+const cv = document.getElementById('meg');
+const ctx = cv.getContext('2d');
+let W, H;
+function resize() {
+  W = cv.width = cv.clientWidth * devicePixelRatio;
+  H = cv.height = cv.clientHeight * devicePixelRatio;
+}
+addEventListener('resize', resize); resize();
+
+const CH = 24, LEN = 600;
+const chans = [];
+for (let c = 0; c < CH; c++) {
+  chans.push({
+    buf: new Float32Array(LEN),
+    phase: Math.random() * 6.28,
+    alphaF: 0.09 + Math.random() * 0.025,   // ~10 Hz-ish in sample units
+    gain: 0.6 + Math.random() * 0.8,
+    evokedGain: (Math.random() - 0.35) * 1.6, // polarity varies across sensors
+    hue: 210 + Math.random() * 60,
+    lp: 0
+  });
+}
+let t = 0, evokedT = -1e9, mouseX = -1, mouseAmp = 0;
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) / r.width; mouseAmp = 1;
+});
+cv.addEventListener('pointerleave', () => mouseX = -1);
+setInterval(() => evokedT = t, 3500 + Math.random() * 1500);
+
+function evoked(dt, gain) {
+  // M100-ish biphasic wave: gaussian-windowed
+  if (dt < 0 || dt > 90) return 0;
+  const g1 = Math.exp(-((dt - 28) ** 2) / 120) * 1.0;
+  const g2 = Math.exp(-((dt - 55) ** 2) / 300) * -0.6;
+  return (g1 + g2) * gain;
+}
+
+function step() {
+  t++;
+  mouseAmp *= 0.96;
+  for (const ch of chans) {
+    // shift left, append new sample
+    ch.buf.copyWithin(0, 1);
+    let v = (Math.random() - 0.5) * 0.7;          // sensor noise
+    ch.lp = ch.lp * 0.92 + v * 0.08;               // low-passed drift
+    v = ch.lp * 6 + Math.sin(t * ch.alphaF + ch.phase) * 0.35 * ch.gain;
+    v += evoked(t - evokedT, ch.evokedGain);
+    ch.buf[LEN - 1] = v;
+  }
+  ctx.clearRect(0, 0, W, H);
+  const mid = H / 2, scale = H * 0.12;
+  for (const ch of chans) {
+    ctx.strokeStyle = `hsla(${ch.hue}, 70%, 65%, 0.35)`;
+    ctx.lineWidth = devicePixelRatio;
+    ctx.beginPath();
+    for (let i = 0; i < LEN; i++) {
+      const x = (i / (LEN - 1)) * W;
+      let v = ch.buf[i];
+      if (mouseX >= 0) {
+        const d = Math.abs(i / LEN - mouseX);
+        v += Math.exp(-d * d * 800) * Math.sin(i * 0.6 + t * 0.2) * mouseAmp * ch.gain;
+      }
+      const y = mid + v * scale;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // stimulus marker
+  const dt = t - evokedT;
+  if (dt >= 0 && dt < 90) {
+    const x = W - dt * (W / LEN);
+    ctx.strokeStyle = 'rgba(232,230,223,0.25)';
+    ctx.setLineDash([4 * devicePixelRatio, 4 * devicePixelRatio]);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  requestAnimationFrame(step);
+}
+step();
+</script>
+</body>
+</html>
