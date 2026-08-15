@@ -4,143 +4,366 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>about · Corentin Bel</title>
-<meta name="description" content="Corentin Bel — ML & neuroscience researcher, brain decoding.">
+<meta name="description" content="Corentin Bel — decoding language in the brain, and reading the wind. Research, CV, passions.">
 <style>
-  :root { --bg:#07080c; --fg:#e8e6df; --dim:#8a8fa3; --accent:#6ea8ff; }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--fg); font-family:ui-sans-serif,system-ui,sans-serif; min-height:100vh; }
-  header {
-    display:flex; justify-content:space-between; align-items:baseline; padding:1.4rem 2rem;
+  :root {
+    --bg:#07080c; --bg2:#0b0d14; --fg:#e8e6df; --dim:#8a8fa3; --faint:#4a4f61;
+    --accent:#6ea8ff; --accent2:#b48ce8; --water:#38a3a5; --air:#e0c3fc;
   }
-  h1 { font-weight:300; font-size:1.4rem; letter-spacing:.06em; }
-  h1 b { font-weight:600; }
-  header a { color:var(--dim); text-decoration:none; font-size:.9rem; }
-  header a:hover { color:var(--accent); }
-  #meg { display:block; width:100%; height:260px; }
-  main { max-width:44rem; margin:0 auto; padding:2rem; line-height:1.75; }
-  main p { margin-bottom:1.1rem; color:#c9c7bf; }
-  main b { color:var(--fg); font-weight:600; }
-  .caption { text-align:center; color:#4a4f61; font-size:.78rem; margin-top:-.8rem; margin-bottom:2.2rem; }
-  .links { margin-top:2rem; display:flex; gap:1.4rem; flex-wrap:wrap; }
-  .links a { color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
-  .links a:hover { border-bottom-color:var(--accent); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--bg); color:var(--fg); font-family:ui-sans-serif,system-ui,"Inter",sans-serif; overflow-x:hidden; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  header.site {
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:1.2rem 2rem;
+    background:linear-gradient(to bottom, rgba(7,8,12,.85), transparent);
+  }
+  header.site h1 { font-weight:300; font-size:1.2rem; letter-spacing:.06em; }
+  header.site h1 b { font-weight:600; }
+  header.site nav a { color:var(--dim); font-size:.9rem; margin-left:1.2rem; }
+  header.site nav a:hover { color:var(--accent); text-decoration:none; }
+
+  /* the signal line rail */
+  #rail { position:absolute; top:0; left:0; pointer-events:none; z-index:1; }
+  #rail path { fill:none; stroke:url(#railgrad); stroke-width:1.6; opacity:.7; }
+  @media (max-width: 900px) { #rail { display:none; } }
+
+  section { position:relative; z-index:2; padding:16vh 2rem; max-width:46rem; margin:0 auto; }
+  @media (min-width: 900px) { section { margin-left:max(2rem, calc(50vw - 26rem)); } }
+
+  /* hero */
+  #hero { min-height:100vh; display:flex; flex-direction:column; justify-content:center; max-width:none; padding-right:2rem; }
+  #heroCanvas { position:fixed; inset:0; z-index:0; }
+  #hero .inner { max-width:44rem; position:relative; }
+  #hero h2 { font-size:clamp(1.9rem,5vw,3.2rem); font-weight:300; line-height:1.25; }
+  #hero h2 b { font-weight:650; }
+  #hero p { margin-top:1.4rem; color:var(--dim); font-size:1.1rem; line-height:1.7; max-width:36rem; }
+  #hero .scrollhint { margin-top:3rem; color:var(--faint); font-size:.85rem; letter-spacing:.15em; text-transform:uppercase; }
+
+  .kicker { color:var(--faint); font-size:.8rem; letter-spacing:.18em; text-transform:uppercase; margin-bottom:.9rem; }
+  section h3 { font-size:1.7rem; font-weight:350; margin-bottom:1.2rem; }
+  section h3 b { font-weight:650; }
+  section > p, section .lead { color:#c9c7bf; line-height:1.75; margin-bottom:1rem; }
+
+  #megCanvas { width:100%; height:180px; display:block; margin:1.6rem 0 .3rem; }
+  .caption { color:var(--faint); font-size:.78rem; margin-bottom:1rem; }
+
+  /* timeline */
+  .tl { margin-top:2rem; border-left:1px solid #232838; }
+  .tl-item { position:relative; padding:0 0 2.2rem 1.8rem; }
+  .tl-item::before {
+    content:""; position:absolute; left:-5px; top:.45em; width:9px; height:9px;
+    border-radius:50%; background:var(--bg); border:2px solid var(--accent);
+  }
+  .tl-item[data-el="water"]::before { border-color:var(--water); }
+  .tl-item[data-el="air"]::before { border-color:var(--air); }
+  .tl-item .when { color:var(--faint); font-size:.8rem; letter-spacing:.08em; }
+  .tl-item .where { font-size:1.1rem; font-weight:600; margin:.15rem 0; }
+  .tl-item .what { color:var(--dim); line-height:1.6; font-size:.95rem; }
+
+  /* cards */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:1rem; margin-top:1.6rem; }
+  .card {
+    border:1px solid #232838; border-radius:12px; padding:1.2rem 1.3rem;
+    background:rgba(13,15,22,.5); transition:border-color .25s, transform .25s;
+  }
+  .card:hover { border-color:var(--accent); transform:translateY(-3px); }
+  .card .emoji { font-size:1.5rem; }
+  .card h4 { margin:.6rem 0 .4rem; font-size:1.02rem; font-weight:600; }
+  .card p { color:var(--dim); font-size:.88rem; line-height:1.55; }
+  .card p a { font-size:.88rem; }
+
+  footer { position:relative; z-index:2; text-align:center; color:var(--faint); font-size:.85rem; padding:4rem 2rem 3rem; }
+  footer .links { margin-bottom:.8rem; }
+  footer .links a { margin:0 .8rem; }
 </style>
 </head>
 <body>
-<header>
+
+<header class="site">
   <h1><b>about</b>me.corentinbel.com</h1>
-  <a href="https://corentinbel.com">← home</a>
+  <nav>
+    <a href="https://lab.corentinbel.com">lab</a>
+    <a href="https://art.corentinbel.com">art</a>
+    <a href="https://corentinbel.com">home</a>
+  </nav>
 </header>
 
-<canvas id="meg"></canvas>
-<div class="caption">live fake MEG — 24 sensors, an evoked response every few seconds. hover to perturb.</div>
+<canvas id="heroCanvas"></canvas>
+<svg id="rail" aria-hidden="true">
+  <defs>
+    <linearGradient id="railgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6ea8ff"/>
+      <stop offset=".45" stop-color="#b48ce8"/>
+      <stop offset=".75" stop-color="#e0c3fc"/>
+      <stop offset="1" stop-color="#38a3a5"/>
+    </linearGradient>
+  </defs>
+  <path id="railPath" d=""/>
+</svg>
 
-<main>
-  <p>Hi, I'm <b>Corentin Bel</b>. I'm a researcher working on <b>decoding language from
-  brain activity</b> — figuring out what the brain is doing when we read, listen, and
-  speak (out loud or silently), using MEG, EEG and fMRI.</p>
+<section id="hero">
+  <div class="inner">
+    <h2>Decoding the language of the <b>brain</b> —<br>and reading the <b>wind</b>.</h2>
+    <p>Hi, I'm <b style="color:var(--fg)">Corentin Bel</b>. I'm a PhD researcher studying how
+    language lives in human brains and in AI models — decoding words from MEG signals,
+    including the ones we never say out loud. Away from the magnetometers you'll find me
+    on a hydrofoil, under a paraglider, or cooking for a crowd.</p>
+    <div class="scrollhint">scroll ↓</div>
+  </div>
+</section>
 
-  <p>I work at <b>NeuroSpin (CEA)</b> near Paris, on covert and imagined speech decoding
-  with naturalistic language stimuli: people listening to audiobooks, reading stories,
-  producing sentences — and machine-learning pipelines that try to read the words back
-  out of the magnetoencephalography signal.</p>
+<section id="mind">
+  <div class="kicker">the mind · now</div>
+  <h3>Decoding <b>covert speech</b> from MEG</h3>
+  <p class="lead">My PhD (ENS Paris · NeuroSpin, CEA) asks a simple question with a hard answer:
+  when you read, listen, or speak silently in your head, what do the magnetic fields around
+  your skull give away? I build decoding pipelines over naturalistic language — audiobooks,
+  stories, produced sentences — to find which levels of language (sound, words, syntax,
+  meaning) can be read back out, and which survive across modalities.</p>
+  <canvas id="megCanvas"></canvas>
+  <div class="caption">live fake MEG — 24 sensors, an evoked response every few seconds. hover to perturb.</div>
+</section>
 
-  <p>The animation above is what raw-ish MEG looks like: dozens of sensors, oscillations
-  everywhere, and — when a stimulus lands — a small, reliable wave buried inside.
-  Most of my work is convincing that wave to give up what it knows.</p>
+<section id="journey">
+  <div class="kicker">the journey</div>
+  <h3>From <b>water</b> to <b>sky</b></h3>
+  <p class="lead">Each stop added one layer: vision, brains, scale, speed — then altitude.</p>
+  <div class="tl" id="timeline"></div>
+</section>
 
-  <p>This site is my playground: <a href="https://lab.corentinbel.com" style="color:var(--accent);text-decoration:none">experiments</a> with brain visualisation and
-  in-browser science, and some <a href="https://art.corentinbel.com" style="color:var(--accent);text-decoration:none">generative art</a>.</p>
+<section id="interests">
+  <div class="kicker">orbits</div>
+  <h3>Research I keep <b>circling back to</b></h3>
+  <p class="lead">Not my day job — the questions I follow anyway.</p>
+  <div class="cards" id="interestCards"></div>
+</section>
 
+<section id="passions">
+  <div class="kicker">the elements</div>
+  <h3>Fluid dynamics, <b>applied</b></h3>
+  <p class="lead">Everything I love outside research is a flow field.</p>
+  <div class="cards" id="passionCards"></div>
+</section>
+
+<footer>
   <div class="links">
     <a href="https://github.com/BelCorentin">github</a>
     <a href="mailto:corentin@corentinbel.com">email</a>
+    <a href="https://lab.corentinbel.com">lab</a>
   </div>
-</main>
+  corentinbel.com
+</footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
-// Butterfly-plot MEG animation: 24 channels of pink-ish noise + alpha rhythm,
-// periodic evoked response (M100-like), mouse hover injects a disturbance.
-const cv = document.getElementById('meg');
-const ctx = cv.getContext('2d');
-let W, H;
-function resize() {
-  W = cv.width = cv.clientWidth * devicePixelRatio;
-  H = cv.height = cv.clientHeight * devicePixelRatio;
-}
-addEventListener('resize', resize); resize();
+/* ================= CONTENT — edit these arrays, git push, done ================= */
 
-const CH = 24, LEN = 600;
-const chans = [];
-for (let c = 0; c < CH; c++) {
-  chans.push({
-    buf: new Float32Array(LEN),
-    phase: Math.random() * 6.28,
-    alphaF: 0.09 + Math.random() * 0.025,   // ~10 Hz-ish in sample units
-    gain: 0.6 + Math.random() * 0.8,
-    evokedGain: (Math.random() - 0.35) * 1.6, // polarity varies across sensors
-    hue: 210 + Math.random() * 60,
-    lp: 0
+const TIMELINE = [
+  { when: "2020 · Inria", el: "water", where: "Computer vision & robotics navigation",
+    what: "First research internship: teaching machines to see and move through the world." },
+  { when: "2021 · CRNL, Lyon", el: "water", where: "Brain–computer interfaces",
+    what: "Motor prediction from neural signals — first contact with reading intentions out of brains." },
+  { when: "2022 · LetsGetChecked", el: "water", where: "Data science, AWS",
+    what: "Health data at industrial scale; learned to ship, not just prototype." },
+  { when: "2022–23 · CEA NeuroSpin", el: "mind", where: "MEG & language",
+    what: "Joined the magnetically shielded rooms: language decoding from MEG, naturalistic stimuli." },
+  { when: "2023 · Neuralk AI", el: "air", where: "Startup ML engineering",
+    what: "Early-stage speed: building ML products when everything is on fire, pleasantly." },
+  { when: "2024–now · PhD, ENS Paris / NeuroSpin (CEA)", el: "air", where: "Decoding covert & imagined speech",
+    what: "The altitude view: how language is represented in brains and in language models, and what transfers between reading, listening and inner speech." },
+];
+
+const INTERESTS = [
+  { emoji: "🍄", title: "Psychedelics & consciousness",
+    text: 'What altered states reveal about conscious access — following <a href="https://scholar.google.com/citations?user=1a-2u_kAAAAJ" target="_blank" rel="noopener">Lucie Berkovitch</a>\'s work on psychedelics and psychiatry.' },
+  { emoji: "🕸️", title: "Mapping the social web",
+    text: 'Political communities and information flow modelled at scale — <a href="https://politoscope.org" target="_blank" rel="noopener">David Chavalarias\' Politoscope</a>.' },
+  { emoji: "🤖", title: "Robots for memory care",
+    text: 'Reachy Mini as a companion for Alzheimer\'s patients — my side project <a href="https://github.com/BelCorentin/reachyng-for-the-stars" target="_blank" rel="noopener">reachyng-for-the-stars</a>.' },
+];
+
+const PASSIONS = [
+  { emoji: "⛵", title: "Sailing", text: "Reading wind, water and a boat's answer to both. The original signal-processing problem." },
+  { emoji: "🏄", title: "Foiling", text: "Flying a wing underwater. Laminar flow or instant humility." },
+  { emoji: "🪂", title: "Paragliding", text: "Thermals are invisible; you decode them from the glider's twitches. Sounds familiar." },
+  { emoji: "🍳", title: "Cooking", text: "The one experimental pipeline where n=8 dinner guests is a big sample." },
+];
+
+/* ================= render ================= */
+
+document.getElementById("timeline").innerHTML = TIMELINE.map(t => `
+  <div class="tl-item reveal" data-el="${t.el}">
+    <div class="when">${t.when}</div>
+    <div class="where">${t.where}</div>
+    <div class="what">${t.what}</div>
+  </div>`).join("");
+
+const card = c => `
+  <div class="card reveal">
+    <div class="emoji">${c.emoji}</div>
+    <h4>${c.title}</h4>
+    <p>${c.text}</p>
+  </div>`;
+document.getElementById("interestCards").innerHTML = INTERESTS.map(card).join("");
+document.getElementById("passionCards").innerHTML = PASSIONS.map(card).join("");
+
+/* ================= hero particles: neurons that drift like wind ================= */
+{
+  const cv = document.getElementById("heroCanvas"), ctx = cv.getContext("2d");
+  let W, H, parts = [], t = 0;
+  const resize = () => { W = cv.width = innerWidth * devicePixelRatio; H = cv.height = innerHeight * devicePixelRatio; };
+  addEventListener("resize", resize); resize();
+  for (let i = 0; i < 110; i++) parts.push({ x: Math.random()*W, y: Math.random()*H, r: (Math.random()*1.3+.6)*devicePixelRatio });
+  const wind = (x, y, t) => Math.sin(x*0.0009 + t*0.004) + Math.sin(y*0.0013 - t*0.003);
+  function step() {
+    t++;
+    // fade with scroll so text sections stay readable
+    const fade = Math.max(0, 1 - scrollY / innerHeight * 1.2);
+    ctx.clearRect(0, 0, W, H);
+    if (fade > 0.01) {
+      ctx.globalAlpha = fade;
+      const L = 140 * devicePixelRatio;
+      for (const p of parts) {
+        const a = wind(p.x, p.y, t) * Math.PI;
+        p.x += Math.cos(a) * 0.35 * devicePixelRatio;
+        p.y += Math.sin(a) * 0.25 * devicePixelRatio + 0.05;
+        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      }
+      ctx.lineWidth = devicePixelRatio * .5;
+      for (let i = 0; i < parts.length; i++) for (let j = i+1; j < parts.length; j++) {
+        const a = parts[i], b = parts[j], d = Math.hypot(a.x-b.x, a.y-b.y);
+        if (d < L) {
+          ctx.strokeStyle = `rgba(110,168,255,${(1-d/L)*.13})`;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = "rgba(232,230,223,.5)";
+      for (const p of parts) { ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    }
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+/* ================= mini MEG butterfly in "mind" section ================= */
+{
+  const cv = document.getElementById("megCanvas"), ctx = cv.getContext("2d");
+  let W, H;
+  const resize = () => { W = cv.width = cv.clientWidth*devicePixelRatio; H = cv.height = cv.clientHeight*devicePixelRatio; };
+  addEventListener("resize", resize); resize();
+  const CH = 24, LEN = 500, chans = [];
+  for (let c = 0; c < CH; c++) chans.push({
+    buf: new Float32Array(LEN), phase: Math.random()*6.28, alphaF: .09+Math.random()*.025,
+    gain: .6+Math.random()*.8, ev: (Math.random()-.35)*1.6, hue: 210+Math.random()*60, lp: 0
+  });
+  let t = 0, evT = -1e9, mx = -1, mAmp = 0;
+  cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect(); mx = (e.clientX-r.left)/r.width; mAmp = 1; });
+  cv.addEventListener("pointerleave", () => mx = -1);
+  setInterval(() => evT = t, 3500 + Math.random()*1500);
+  const evoked = (dt, g) => (dt<0||dt>90) ? 0 :
+    (Math.exp(-((dt-28)**2)/120) - .6*Math.exp(-((dt-55)**2)/300)) * g;
+  function step() {
+    t++; mAmp *= .96;
+    for (const ch of chans) {
+      ch.buf.copyWithin(0,1);
+      let v = (Math.random()-.5)*.7; ch.lp = ch.lp*.92 + v*.08;
+      ch.buf[LEN-1] = ch.lp*6 + Math.sin(t*ch.alphaF+ch.phase)*.35*ch.gain + evoked(t-evT, ch.ev);
+    }
+    ctx.clearRect(0,0,W,H);
+    const mid = H/2, sc = H*.13;
+    for (const ch of chans) {
+      ctx.strokeStyle = `hsla(${ch.hue},70%,65%,.35)`; ctx.lineWidth = devicePixelRatio;
+      ctx.beginPath();
+      for (let i = 0; i < LEN; i++) {
+        let v = ch.buf[i];
+        if (mx >= 0) { const d = Math.abs(i/LEN - mx); v += Math.exp(-d*d*800)*Math.sin(i*.6+t*.2)*mAmp*ch.gain; }
+        const x = i/(LEN-1)*W, y = mid + v*sc;
+        i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+      }
+      ctx.stroke();
+    }
+    const dt = t - evT;
+    if (dt >= 0 && dt < 90) {
+      const x = W - dt*(W/LEN);
+      ctx.strokeStyle = "rgba(232,230,223,.25)";
+      ctx.setLineDash([4*devicePixelRatio,4*devicePixelRatio]);
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); ctx.setLineDash([]);
+    }
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+/* ================= signal rail: brainwave → thermals → ripples, drawn on scroll ================= */
+
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function buildRail() {
+  const svg = document.getElementById("rail");
+  if (innerWidth < 900) return;
+  const H = document.documentElement.scrollHeight;
+  svg.setAttribute("width", 220); svg.setAttribute("height", H);
+  svg.style.height = H + "px";
+  // waveform params per section: [freq, amp, jitter]
+  const bands = [
+    { el: document.getElementById("hero"),      p: [0.008, 10, 0]  },   // calm
+    { el: document.getElementById("mind"),      p: [0.15,  22, 14] },   // jagged EEG
+    { el: document.getElementById("journey"),   p: [0.012, 34, 0]  },   // thermals, long smooth
+    { el: document.getElementById("interests"), p: [0.03,  18, 3]  },   // mixed
+    { el: document.getElementById("passions"),  p: [0.05,  26, 0]  },   // ripples
+  ].map(b => ({ mid: b.el.offsetTop + b.el.offsetHeight/2, p: b.p }));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const params = y => {
+    if (y <= bands[0].mid) return bands[0].p;
+    if (y >= bands[bands.length-1].mid) return bands[bands.length-1].p;
+    for (let i = 0; i < bands.length-1; i++) {
+      const a = bands[i], b = bands[i+1];
+      if (y >= a.mid && y < b.mid) {
+        const t = (y - a.mid) / (b.mid - a.mid), s = t*t*(3-2*t);
+        return [lerp(a.p[0], b.p[0], s), lerp(a.p[1], b.p[1], s), lerp(a.p[2], b.p[2], s)];
+      }
+    }
+    return bands[0].p;
+  };
+  const hash = n => { const s = Math.sin(n*127.1)*43758.5; return s - Math.floor(s) - .5; };
+  const X0 = 110;
+  let d = "";
+  for (let y = 0; y <= H; y += 6) {
+    const [f, a, j] = params(y);
+    const x = X0 + Math.sin(y*f)*a + Math.sin(y*f*2.7+1.3)*a*.35 + hash(Math.floor(y/6))*j;
+    d += (y === 0 ? "M" : "L") + x.toFixed(1) + " " + y;
+  }
+  const path = document.getElementById("railPath");
+  path.setAttribute("d", d);
+  const len = path.getTotalLength();
+  path.style.strokeDasharray = len;
+  path.style.strokeDashoffset = reduced ? 0 : len;
+  if (!reduced) gsap.to(path.style, {
+    strokeDashoffset: 0, ease: "none",
+    scrollTrigger: { trigger: document.body, start: "top top", end: "bottom bottom", scrub: 0.6 }
   });
 }
-let t = 0, evokedT = -1e9, mouseX = -1, mouseAmp = 0;
-cv.addEventListener('pointermove', e => {
-  const r = cv.getBoundingClientRect();
-  mouseX = (e.clientX - r.left) / r.width; mouseAmp = 1;
-});
-cv.addEventListener('pointerleave', () => mouseX = -1);
-setInterval(() => evokedT = t, 3500 + Math.random() * 1500);
 
-function evoked(dt, gain) {
-  // M100-ish biphasic wave: gaussian-windowed
-  if (dt < 0 || dt > 90) return 0;
-  const g1 = Math.exp(-((dt - 28) ** 2) / 120) * 1.0;
-  const g2 = Math.exp(-((dt - 55) ** 2) / 300) * -0.6;
-  return (g1 + g2) * gain;
-}
+gsap.registerPlugin(ScrollTrigger);
+buildRail();
+addEventListener("resize", () => { ScrollTrigger.getAll().forEach(s => s.kill()); buildRail(); });
 
-function step() {
-  t++;
-  mouseAmp *= 0.96;
-  for (const ch of chans) {
-    // shift left, append new sample
-    ch.buf.copyWithin(0, 1);
-    let v = (Math.random() - 0.5) * 0.7;          // sensor noise
-    ch.lp = ch.lp * 0.92 + v * 0.08;               // low-passed drift
-    v = ch.lp * 6 + Math.sin(t * ch.alphaF + ch.phase) * 0.35 * ch.gain;
-    v += evoked(t - evokedT, ch.evokedGain);
-    ch.buf[LEN - 1] = v;
-  }
-  ctx.clearRect(0, 0, W, H);
-  const mid = H / 2, scale = H * 0.12;
-  for (const ch of chans) {
-    ctx.strokeStyle = `hsla(${ch.hue}, 70%, 65%, 0.35)`;
-    ctx.lineWidth = devicePixelRatio;
-    ctx.beginPath();
-    for (let i = 0; i < LEN; i++) {
-      const x = (i / (LEN - 1)) * W;
-      let v = ch.buf[i];
-      if (mouseX >= 0) {
-        const d = Math.abs(i / LEN - mouseX);
-        v += Math.exp(-d * d * 800) * Math.sin(i * 0.6 + t * 0.2) * mouseAmp * ch.gain;
-      }
-      const y = mid + v * scale;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-  // stimulus marker
-  const dt = t - evokedT;
-  if (dt >= 0 && dt < 90) {
-    const x = W - dt * (W / LEN);
-    ctx.strokeStyle = 'rgba(232,230,223,0.25)';
-    ctx.setLineDash([4 * devicePixelRatio, 4 * devicePixelRatio]);
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  requestAnimationFrame(step);
+if (!reduced) {
+  gsap.utils.toArray("section").forEach(sec => {
+    gsap.from(sec.querySelectorAll(".kicker, h3, .lead, .reveal, #megCanvas, .caption"), {
+      opacity: 0, y: 26, duration: 0.7, stagger: 0.08, ease: "power2.out",
+      scrollTrigger: { trigger: sec, start: "top 72%" }
+    });
+  });
 }
-step();
 </script>
 </body>
 </html>
