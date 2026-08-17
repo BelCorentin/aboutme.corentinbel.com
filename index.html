@@ -114,6 +114,11 @@
   .card p { color:var(--dim); font-size:.88rem; line-height:1.55; }
   .card p a { font-size:.88rem; }
 
+  /* card activation FX canvases */
+  .fx { position:absolute; inset:0; width:100%; height:100%; border-radius:inherit; pointer-events:none; z-index:0; }
+  .xp, .card, .pub { position:relative; overflow:hidden; }
+  .xp > *:not(.fx), .card > *:not(.fx), .pub > *:not(.fx) { position:relative; z-index:1; }
+
   footer { position:relative; z-index:2; text-align:center; color:var(--faint); font-size:.85rem; padding:4rem 2rem 3rem; }
   footer .links { margin-bottom:.8rem; }
   footer .links a { margin:0 .8rem; }
@@ -257,9 +262,9 @@ const PROJECTS = [
     text: "Wing & SUP-foil downwind runs of France on an interactive wind map." },
   { emoji: "🌊", title: "wind.corentinbel", url: "https://wind.corentinbel.com",
     text: "Live wind & wave model explorer, à la Windy." },
-  { emoji: "🤖", title: "reachyng-for-the-stars", url: "https://github.com/BelCorentin/reachyng-for-the-stars",
+  { emoji: "🤖", title: "reachy-memoire", url: "https://github.com/BelCorentin/reachy-memoire",
     text: "Reachy Mini robot companion experiments for Alzheimer care." },
-  { emoji: "🧰", title: "neuralset ecosystem", url: "https://github.com/BelCorentin",
+  { emoji: "🧰", title: "neuralset ecosystem", url: "https://facebookresearch.github.io/neuroai/index.html",
     text: "Open-source Python tooling for neuro-AI — see the NeuralSet paper above." },
 ];
 
@@ -273,7 +278,7 @@ const INTERESTS = [
   { emoji: "❄️", title: "Tor Snowflake",
     text: 'Supporting censorship circumvention by running <a href="https://snowflake.torproject.org" target="_blank" rel="noopener">Snowflake proxies</a> — spare bandwidth as a public good.' },
   { emoji: "🤖", title: "Robots for memory care",
-    text: 'Reachy Mini as a companion for Alzheimer\'s patients — my side project <a href="https://github.com/BelCorentin/reachyng-for-the-stars" target="_blank" rel="noopener">reachyng-for-the-stars</a>.' },
+    text: 'Reachy Mini as a companion for Alzheimer\'s patients — my side project <a href="https://github.com/BelCorentin/reachy-memoire" target="_blank" rel="noopener">reachy-memoire</a>.' },
 ];
 
 const PASSIONS = [
@@ -285,8 +290,9 @@ const PASSIONS = [
 
 /* ================= render ================= */
 
+const XP_FX = { water: "ripple", mind: "spikes", air: "updraft" };
 document.getElementById("xpCards").innerHTML = TIMELINE.map(t => `
-  <div class="xp" data-el="${t.el}">
+  <div class="xp" data-el="${t.el}" data-fx="${XP_FX[t.el] || "wind"}">
     <div class="badge">${t.icon}</div>
     <div class="body">
       <div class="when">${t.when}</div>
@@ -297,27 +303,148 @@ document.getElementById("xpCards").innerHTML = TIMELINE.map(t => `
   </div>`).join("");
 
 document.getElementById("pubCards").innerHTML = PUBS.map(p => `
-  <div class="pub reveal">
+  <div class="pub reveal" data-fx="spikes">
     <div class="ptitle">${p.title}</div>
     <div class="authors">${p.authors}</div>
     <span class="venue">${p.venue ? p.venue + " · " : ""}${p.year}</span>
   </div>`).join("");
 
-document.getElementById("projectCards").innerHTML = PROJECTS.map(p => `
-  <div class="card reveal">
+const PROJECT_FX = ["wind", "wind", "network", "network"];
+document.getElementById("projectCards").innerHTML = PROJECTS.map((p, i) => `
+  <div class="card reveal" data-fx="${p.fx || PROJECT_FX[i] || "network"}">
     <div class="emoji">${p.emoji}</div>
     <h4><a href="${p.url}" target="_blank" rel="noopener">${p.title}</a></h4>
     <p>${p.text}</p>
   </div>`).join("");
 
-const card = c => `
-  <div class="card reveal">
+const card = (c, fx) => `
+  <div class="card reveal" data-fx="${c.fx || fx}">
     <div class="emoji">${c.emoji}</div>
     <h4>${c.title}</h4>
     <p>${c.text}</p>
   </div>`;
-document.getElementById("interestCards").innerHTML = INTERESTS.map(card).join("");
-document.getElementById("passionCards").innerHTML = PASSIONS.map(card).join("");
+document.getElementById("interestCards").innerHTML = INTERESTS.map(c => card(c, "network")).join("");
+const PASSION_FX = ["wind", "ripple", "updraft", "updraft"];
+document.getElementById("passionCards").innerHTML = PASSIONS.map((c, i) => card(c, PASSION_FX[i] || "wind")).join("");
+
+/* ================= card activation FX =================
+   Each card with data-fx gets a canvas behind its content.
+   Activates on hover, plus a one-shot burst on first scroll reveal.
+   Types: spikes (EEG raster) · ripple (water rings) · updraft (rising air)
+          wind (speed streaks) · network (pulsing graph)              */
+(() => {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const DPR = Math.min(devicePixelRatio, 2);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  const DRAW = {
+    spikes(ctx, W, H, t, a, S) {
+      ctx.strokeStyle = `rgba(110,168,255,${0.35 * a})`;
+      ctx.lineWidth = DPR;
+      for (let r = 0; r < 3; r++) {
+        const y0 = H * (0.3 + r * 0.22);
+        ctx.beginPath();
+        for (let x = 0; x < W; x += 3 * DPR) {
+          const ph = (x + t * 2.2 * DPR) * 0.05 / DPR + S[r] * 9;
+          let v = Math.sin(ph) * 2 + Math.sin(ph * 2.7) * 1.2;
+          const sp = Math.sin(ph * 0.31 + S[r]);
+          if (sp > 0.985) v -= 14;                       // spike
+          const y = y0 + v * DPR;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    },
+    ripple(ctx, W, H, t, a, S) {
+      for (let i = 0; i < 4; i++) {
+        const ph = ((t * 0.9 + i * 55 + S[i] * 100) % 220) / 220;
+        const r = ph * Math.min(W, H) * 0.75;
+        ctx.strokeStyle = `rgba(56,163,165,${0.5 * a * (1 - ph)})`;
+        ctx.lineWidth = 1.4 * DPR;
+        ctx.beginPath();
+        ctx.arc(W * (0.2 + S[i] * 0.6), H * (0.3 + S[(i + 1) % 4] * 0.4), r, 0, 7);
+        ctx.stroke();
+      }
+    },
+    updraft(ctx, W, H, t, a, S) {
+      ctx.fillStyle = `rgba(224,195,252,${0.55 * a})`;
+      for (let i = 0; i < 16; i++) {
+        const ph = ((t * (1.1 + S[i % 4]) + i * 47) % 260) / 260;
+        const x = W * ((i * 0.618) % 1) + Math.sin(ph * 12 + i) * 8 * DPR;
+        const y = H * (1 - ph);
+        ctx.beginPath(); ctx.arc(x, y, (1 + (1 - ph)) * DPR, 0, 7); ctx.fill();
+      }
+    },
+    wind(ctx, W, H, t, a, S) {
+      ctx.lineWidth = DPR;
+      for (let i = 0; i < 10; i++) {
+        const sp = 3 + S[i % 4] * 5;
+        const x = ((t * sp * DPR + i * W / 7) % (W + 60 * DPR)) - 30 * DPR;
+        const y = H * ((i * 0.618 + 0.07) % 1);
+        const len = (14 + S[(i + 2) % 4] * 26) * DPR;
+        const g = ctx.createLinearGradient(x - len, y, x, y);
+        g.addColorStop(0, "rgba(140,238,221,0)");
+        g.addColorStop(1, `rgba(140,238,221,${0.5 * a})`);
+        ctx.strokeStyle = g;
+        ctx.beginPath(); ctx.moveTo(x - len, y); ctx.lineTo(x, y); ctx.stroke();
+      }
+    },
+    network(ctx, W, H, t, a, S) {
+      const n = 7, pts = [];
+      for (let i = 0; i < n; i++) {
+        pts.push([
+          W * (0.12 + ((i * 0.618 + S[i % 4] * 0.25) % 1) * 0.76) + Math.sin(t * 0.02 + i * 2) * 5 * DPR,
+          H * (0.15 + ((i * 0.37 + S[(i + 1) % 4] * 0.3) % 1) * 0.7) + Math.cos(t * 0.017 + i) * 5 * DPR,
+        ]);
+      }
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        const d = Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+        if (d < W * 0.4) {
+          ctx.strokeStyle = `rgba(180,140,232,${0.3 * a * (1 - d / (W * 0.4))})`;
+          ctx.lineWidth = DPR * 0.8;
+          ctx.beginPath(); ctx.moveTo(...pts[i]); ctx.lineTo(...pts[j]); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = `rgba(180,140,232,${0.7 * a})`;
+      const pulse = Math.floor(t / 40) % n;
+      pts.forEach(([x, y], i) => {
+        ctx.beginPath(); ctx.arc(x, y, (i === pulse ? 3.4 : 2) * DPR, 0, 7); ctx.fill();
+      });
+    },
+  };
+
+  document.querySelectorAll("[data-fx]").forEach(el => {
+    const type = el.dataset.fx;
+    if (!DRAW[type]) return;
+    const cv = document.createElement("canvas");
+    cv.className = "fx";
+    el.prepend(cv);
+    const ctx = cv.getContext("2d");
+    const S = [Math.random(), Math.random(), Math.random(), Math.random()];
+    let raf = null, t = Math.random() * 500, alpha = 0, target = 0;
+    function frame() {
+      const W = cv.clientWidth * DPR, H = cv.clientHeight * DPR;
+      if (cv.width !== W) { cv.width = W; cv.height = H; }
+      t++;
+      alpha += (target - alpha) * 0.07;
+      ctx.clearRect(0, 0, W, H);
+      if (alpha < 0.01 && target === 0) { raf = null; return; }
+      DRAW[type](ctx, W, H, t, alpha, S);
+      raf = requestAnimationFrame(frame);
+    }
+    const go = () => { if (!raf) frame(); };
+    let hovered = false;
+    el.addEventListener("pointerenter", () => { hovered = true; target = 1; go(); });
+    el.addEventListener("pointerleave", () => { hovered = false; target = 0; });
+    new IntersectionObserver((entries, io) => {
+      if (entries[0].isIntersecting) {
+        io.disconnect();
+        target = 1; go();
+        setTimeout(() => { if (!hovered) target = 0; }, 1500);
+      }
+    }, { threshold: 0.4 }).observe(el);
+  });
+})();
 
 /* ================= hero particles: neurons that drift like wind ================= */
 {
