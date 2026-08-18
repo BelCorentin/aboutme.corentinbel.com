@@ -42,7 +42,13 @@
   #hero h2 { font-size:clamp(1.9rem,5vw,3.2rem); font-weight:300; line-height:1.25; }
   #hero h2 b { font-weight:650; }
   #hero p { margin-top:1.4rem; color:var(--dim); font-size:1.1rem; line-height:1.7; max-width:36rem; }
-  #hero .scrollhint { margin-top:3rem; color:var(--faint); font-size:.85rem; letter-spacing:.15em; text-transform:uppercase; }
+  #exploreBtn { display:inline-block; margin-top:2rem; padding:.75rem 1.2rem; border:1px solid var(--accent);
+  border-radius:12px; color:var(--fg); text-decoration:none; background:rgba(110,168,255,.08);
+  transition:background .25s, transform .25s, box-shadow .25s; }
+#exploreBtn:hover { background:rgba(110,168,255,.18); transform:translateY(-2px);
+  box-shadow:0 6px 24px rgba(110,168,255,.25); }
+#exploreBtn span { color:var(--dim); font-size:.85rem; }
+#hero .scrollhint { margin-top:3rem; color:var(--faint); font-size:.85rem; letter-spacing:.15em; text-transform:uppercase; }
 
   .kicker { color:var(--faint); font-size:.8rem; letter-spacing:.18em; text-transform:uppercase; margin-bottom:.9rem; }
   section h3 { font-size:1.7rem; font-weight:350; margin-bottom:1.2rem; }
@@ -155,7 +161,8 @@
     language lives in human brains and in AI models — decoding words from MEG signals,
     including the ones we never say out loud. Away from the magnetometers you'll find me
     on a hydrofoil, under a paraglider, or cooking for a crowd.</p>
-    <div class="scrollhint">scroll ↓</div>
+    <a id="exploreBtn" href="explore/">🧠 wander my mind <span>— explore this page as a connectome, fog-of-war included</span></a>
+    <div class="scrollhint">or scroll the linear version ↓</div>
   </div>
 </section>
 
