@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wander my mind · Corentin Bel</title>
+<meta name="description" content="The portfolio as an explorable connectome. Click a neuron. Follow the signal.">
+<style>
+  :root {
+    --bg:#07080c; --fg:#e8e6df; --dim:#8a8fa3; --faint:#4a4f61;
+    --accent:#6ea8ff; --purple:#b48ce8; --teal:#8ceedd; --pale:#e0c3fc; --warm:#ffb26e;
+    --glass:rgba(13,16,24,.72); --radius:12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--fg); overflow:hidden;
+    font-family:ui-sans-serif,system-ui,"Inter",sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  #scene {
+    position:fixed; inset:0; width:100%; height:100%; display:block;
+    touch-action:none; cursor:grab; outline:none;
+  }
+  #scene:focus-visible { box-shadow:inset 0 0 0 2px rgba(110,168,255,.5); }
+  #scene.dragging { cursor:grabbing; }
+
+  .glass {
+    background:var(--glass); border:1px solid rgba(110,168,255,.16);
+    border-radius:var(--radius); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  }
+
+  header#top {
+    position:fixed; top:0; left:0; z-index:20; padding:.9rem 1.1rem; margin:.8rem;
+  }
+  header#top .back { font-size:.78rem; color:var(--dim); display:block; margin-bottom:.25rem; }
+  header#top .back:hover { color:var(--accent); text-decoration:none; }
+  header#top h1 { font-size:1.05rem; font-weight:600; letter-spacing:.04em; }
+  header#top .hint { font-size:.75rem; color:var(--dim); margin-top:.2rem; }
+
+  #hud {
+    position:fixed; top:0; right:0; z-index:20; margin:.8rem; padding:.7rem .9rem .8rem;
+    display:flex; flex-direction:column; gap:.5rem; align-items:flex-end;
+  }
+  #hud .count { font-size:.78rem; color:var(--dim); letter-spacing:.05em; }
+  #hud .count b { color:var(--fg); font-weight:650; }
+  #minimap { width:150px; height:96px; display:block; border-radius:8px; background:rgba(7,8,12,.5); }
+
+  #lostBtn {
+    position:fixed; bottom:1rem; right:1rem; z-index:20;
+    padding:.55rem 1.1rem; font-size:.85rem; color:var(--teal); cursor:pointer;
+    font-family:inherit; transition:border-color .2s, color .2s;
+  }
+  #lostBtn:hover { border-color:var(--teal); color:var(--fg); }
+
+  #toast {
+    position:fixed; bottom:1.2rem; left:50%; transform:translate(-50%, 140%); z-index:25;
+    padding:.6rem 1.2rem; font-size:.9rem; pointer-events:none;
+    transition:transform .35s ease, opacity .35s; opacity:0;
+  }
+  #toast.show { transform:translate(-50%, 0); opacity:1; }
+
+  /* content card: side panel desktop, bottom sheet mobile */
+  #card {
+    position:fixed; z-index:30; padding:1.3rem 1.4rem 1.4rem; overflow-y:auto;
+    top:5.4rem; right:.8rem; bottom:.8rem; width:min(380px, calc(100vw - 1.6rem));
+    transform:translateX(115%); transition:transform .35s cubic-bezier(.2,.8,.2,1);
+    visibility:hidden;
+  }
+  #card.open { transform:translateX(0); visibility:visible; }
+  @media (max-width:640px) {
+    #card {
+      top:auto; left:.6rem; right:.6rem; bottom:.6rem; width:auto; max-height:62vh;
+      transform:translateY(115%);
+    }
+    #card.open { transform:translateY(0); }
+  }
+  #cardClose {
+    position:absolute; top:.6rem; right:.7rem; background:none; border:none; color:var(--dim);
+    font-size:1.3rem; cursor:pointer; line-height:1; padding:.2rem .4rem; font-family:inherit;
+  }
+  #cardClose:hover { color:var(--fg); }
+  #cardCluster {
+    display:inline-flex; align-items:center; gap:.4rem;
+    font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim);
+    margin-bottom:.7rem;
+  }
+  #cardCluster .dot { width:.55rem; height:.55rem; border-radius:50%; background:var(--accent); }
+  #card h2 { font-size:1.2rem; font-weight:650; line-height:1.35; }
+  #card h2 .em { margin-right:.45rem; }
+  #cardSub { color:var(--faint); font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; margin-top:.35rem; }
+  #cardDesc { color:#c9c7bf; font-size:.92rem; line-height:1.65; margin-top:.8rem; }
+  #cardDesc b { color:var(--fg); }
+  #cardChips { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.9rem; }
+  #cardChips .chip {
+    font-size:.72rem; letter-spacing:.04em; color:#aab1c8; white-space:nowrap;
+    border:1px solid #2b3147; border-radius:999px; padding:.2rem .65rem;
+    background:rgba(110,168,255,.07);
+  }
+  #cardLinks { margin-top:1rem; display:flex; flex-direction:column; gap:.4rem; }
+  #cardLinks a {
+    display:inline-block; font-size:.85rem; align-self:flex-start;
+    border:1px solid #2b3147; border-radius:999px; padding:.4rem 1rem;
+    transition:border-color .2s, background .2s;
+  }
+  #cardLinks a:hover { border-color:var(--accent); background:rgba(110,168,255,.08); text-decoration:none; }
+
+  /* hidden-but-focusable full list */
+  #listAll summary {
+    cursor:pointer; font-size:.85rem; color:var(--dim); padding:.5rem .9rem;
+  }
+  #listAll:not(:focus-within):not([open]) {
+    position:absolute; width:1px; height:1px; overflow:hidden;
+    clip-path:inset(50%); white-space:nowrap;
+  }
+  #listAll:focus-within, #listAll[open] {
+    position:fixed; left:.8rem; bottom:.8rem; z-index:40; max-width:min(480px, calc(100vw - 1.6rem));
+    max-height:70vh; overflow-y:auto; padding:.4rem .5rem .9rem;
+  }
+  #listAll h3 { font-size:.8rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); margin:.9rem .9rem .3rem; }
+  #listAll ul { list-style:none; margin:0 .9rem; }
+  #listAll li { font-size:.85rem; line-height:1.55; color:#c9c7bf; margin-top:.35rem; }
+  #listAll li b { color:var(--fg); }
+
+  noscript .fallback { position:fixed; inset:0; display:grid; place-items:center; padding:2rem; text-align:center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #card, #toast { transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene" tabindex="0" role="application"
+  aria-label="memory map — drag to pan, scroll to zoom, arrow keys pan, plus and minus zoom, click a neuron to read it"></canvas>
+
+<header id="top" class="glass">
+  <a class="back" href="../">← the linear version</a>
+  <h1>wander my mind</h1>
+  <div class="hint">click a neuron. follow the signal.</div>
+</header>
+
+<div id="hud" class="glass" aria-live="polite">
+  <div class="count">explored <b id="cnt">0</b> / <b id="tot">0</b> memories</div>
+  <canvas id="minimap" aria-hidden="true"></canvas>
+</div>
+
+<button id="lostBtn" class="glass" type="button">lost?</button>
+<div id="toast" class="glass" role="status"></div>
+
+<aside id="card" class="glass" role="dialog" aria-labelledby="cardTitle" tabindex="-1">
+  <button id="cardClose" type="button" aria-label="close">×</button>
+  <div id="cardCluster"><span class="dot"></span><span id="cardClusterName"></span></div>
+  <h2 id="cardTitle"></h2>
+  <div id="cardSub"></div>
+  <div id="cardDesc"></div>
+  <div id="cardChips"></div>
+  <div id="cardLinks"></div>
+</aside>
+
+<details id="listAll" class="glass">
+  <summary>view all as list</summary>
+  <div id="listAllBody"></div>
+</details>
+
+<noscript><div class="fallback glass"><p>This map needs JavaScript. <a href="../">Read the linear version instead →</a></p></div></noscript>
+
+<script>
+"use strict";
+/* ============================================================
+   wander my mind — the portfolio as a fog-of-war connectome.
+   Content mirrors ../index.html (TIMELINE / PUBS / PROJECTS /
+   INTERESTS / PASSIONS). Edit there first, then here.
+   ============================================================ */
+
+const TAU = Math.PI * 2;
+const MIN_DIST = 46; // minimum world-space distance between any two nodes
+
+const CLUSTERS = {
+  timeline:  { name: "prefrontal archive",  color: "#6ea8ff" },
+  pubs:      { name: "language cortex",     color: "#b48ce8" },
+  projects:  { name: "motor cortex",        color: "#8ceedd" },
+  interests: { name: "association cortex",  color: "#e0c3fc" },
+  passions:  { name: "limbic system",       color: "#ffb26e" },
+  egg:       { name: "terra incognita",     color: "#8a8fa3" },
+};
+
+const SCHOLAR = "https://scholar.google.com/citations?user=GvwZQ5oAAAAJ";
+
+const NODES = [
+  /* ---- prefrontal archive: career timeline ---- */
+  { id: "tl-inria", cluster: "timeline", icon: "👁️", label: "Inria · vision",
+    title: "Computer vision & robotics navigation", sub: "2020 · Inria",
+    desc: "First research internship: teaching machines to see and move through the world.",
+    chips: ["computer vision", "robot navigation", "first research"], links: [] },
+  { id: "tl-crnl", cluster: "timeline", icon: "🧠", label: "CRNL · BCI",
+    title: "Brain–computer interfaces", sub: "2021 · CRNL, Lyon",
+    desc: "Motor prediction from neural signals — first contact with reading intentions out of brains.",
+    chips: ["BCI", "motor decoding", "neural signals"], links: [] },
+  { id: "tl-lgc", cluster: "timeline", icon: "📊", label: "LetsGetChecked",
+    title: "Data science, AWS", sub: "2022 · LetsGetChecked",
+    desc: "Health data at industrial scale; learned to ship, not just prototype.",
+    chips: ["health data", "AWS", "production ML"], links: [] },
+  { id: "tl-neurospin", cluster: "timeline", icon: "🧲", label: "NeuroSpin · MEG",
+    title: "MEG & language", sub: "2022–23 · CEA NeuroSpin",
+    desc: "Joined the magnetically shielded rooms: language decoding from MEG, naturalistic stimuli.",
+    chips: ["MEG", "language decoding", "naturalistic stimuli"], links: [] },
+  { id: "tl-neuralk", cluster: "timeline", icon: "🚀", label: "Neuralk AI",
+    title: "Startup ML engineering", sub: "2023 · Neuralk AI",
+    desc: "Early-stage speed: building ML products when everything is on fire, pleasantly.",
+    chips: ["startup pace", "ML engineering", "0→1 products"], links: [] },
+  { id: "tl-phd", cluster: "timeline", icon: "🎓", label: "PhD · covert speech",
+    title: "Decoding covert & imagined speech", sub: "2024–now · PhD — ENS-PSL × NeuroSpin (CEA) × Meta AI",
+    desc: "The altitude view: how language is represented in brains vs LLMs, and what transfers between reading, listening and inner speech — in collaboration with Meta AI on large-scale MEG decoding.",
+    chips: ["covert speech", "brains × LLMs", "Meta AI collaboration"], links: [] },
+
+  /* ---- language cortex: publications ---- */
+  { id: "pub-natcomms", cluster: "pubs", icon: "📄", label: "words from MEG",
+    title: "Towards decoding individual words from non-invasive brain recordings",
+    sub: "Nature Communications · 2025",
+    desc: "S. d'Ascoli, <b>C. Bel</b>, J. Rapin, H. Banville, Y. Benchetrit, C. Pallier, J-R. King",
+    chips: ["Nature Communications", "2025"],
+    links: [{ label: "Google Scholar →", href: SCHOLAR }] },
+  { id: "pub-arxiv723", cluster: "pubs", icon: "📄", label: "723 participants",
+    title: "Decoding individual words from non-invasive brain recordings across 723 participants",
+    sub: "arXiv · 2024",
+    desc: "S. d'Ascoli, <b>C. Bel</b>, J. Rapin, H. Banville, Y. Benchetrit, C. Pallier, J-R. King",
+    chips: ["arXiv", "2024"],
+    links: [{ label: "Google Scholar →", href: SCHOLAR }] },
+  { id: "pub-neuralset", cluster: "pubs", icon: "📄", label: "NeuralSet paper",
+    title: "NeuralSet: A High-Performing Python Package for Neuro-AI",
+    sub: "arXiv · 2026",
+    desc: "J-R. King, <b>C. Bel</b>, L. Evanson, J. Gadonneix, S. Houhamdi, J. Lévy, J. Raugel, et al.",
+    chips: ["arXiv", "2026"],
+    links: [{ label: "Google Scholar →", href: SCHOLAR }] },
+  { id: "pub-sentences", cluster: "pubs", icon: "📄", label: "sentence decoding",
+    title: "Accurate Decoding of Natural Sentences from Non-Invasive Brain Recordings",
+    sub: "2026",
+    desc: "M-L. Zhang, J. Lévy, C. Rommel, J. Rapin, <b>C. Bel</b>, J. Bonnaire, D. Nieto, et al.",
+    chips: ["2026"],
+    links: [{ label: "Google Scholar →", href: SCHOLAR }] },
+
+  /* ---- motor cortex: projects ---- */
+  { id: "proj-downthewind", cluster: "projects", icon: "🌬️", label: "downthewind",
+    title: "downthewind", sub: "side project",
+    desc: "Wing & SUP-foil downwind runs of France on an interactive wind map.",
+    chips: ["wind", "maps"], links: [{ label: "downthewind.com →", href: "https://downthewind.com" }] },
+  { id: "proj-wind", cluster: "projects", icon: "🌊", label: "wind.corentinbel",
+    title: "wind.corentinbel", sub: "side project",
+    desc: "Live wind & wave model explorer, à la Windy.",
+    chips: ["wind models", "live data"], links: [{ label: "wind.corentinbel.com →", href: "https://wind.corentinbel.com" }] },
+  { id: "proj-reachy", cluster: "projects", icon: "🤖", label: "reachy-memoire",
+    title: "reachy-memoire", sub: "side project",
+    desc: "Reachy Mini robot companion experiments for Alzheimer care.",
+    chips: ["robotics", "care"], links: [{ label: "github →", href: "https://github.com/BelCorentin/reachy-memoire" }] },
+  { id: "proj-neuralset", cluster: "projects", icon: "🧰", label: "neuralset ecosystem",
+    title: "neuralset ecosystem", sub: "open source",
+    desc: "Open-source Python tooling for neuro-AI — see the NeuralSet paper next door in language cortex.",
+    chips: ["python", "neuro-AI"], links: [{ label: "docs →", href: "https://facebookresearch.github.io/neuroai/index.html" }] },
+
+  /* ---- association cortex: interests ---- */
+  { id: "int-psychedelics", cluster: "interests", icon: "🍄", label: "psychedelics",
+    title: "Psychedelics & consciousness", sub: "orbit",
+    desc: "What altered states reveal about conscious access — hear Lucie Berkovitch on France Culture on psychedelics renewing psychiatric care.",
+    chips: ["consciousness"], links: [{ label: "Lucie Berkovitch · France Culture →", href: "https://www.radiofrance.fr/franceculture/podcasts/questions-du-soir-le-debat/comment-les-psychedeliques-peuvent-ils-renouveler-le-soin-2565933" }] },
+  { id: "int-socialweb", cluster: "interests", icon: "🕸️", label: "social web maps",
+    title: "Mapping the social web", sub: "orbit",
+    desc: "Political communities and information flow modelled at scale — David Chavalarias' Politoscope.",
+    chips: ["network science"], links: [{ label: "politoscope.org →", href: "https://politoscope.org" }] },
+  { id: "int-openportability", cluster: "interests", icon: "🚪", label: "OpenPortability",
+    title: "OpenPortability", sub: "orbit",
+    desc: "Your social graph should be yours to carry — OpenPortability (HelloQuitteX), David Chavalarias' project for leaving closed platforms without losing your network.",
+    chips: ["data portability"], links: [{ label: "openportability.org →", href: "https://openportability.org" }] },
+  { id: "int-snowflake", cluster: "interests", icon: "❄️", label: "Tor Snowflake",
+    title: "Tor Snowflake", sub: "orbit",
+    desc: "Supporting censorship circumvention by running Snowflake proxies — spare bandwidth as a public good.",
+    chips: ["privacy"], links: [{ label: "snowflake.torproject.org →", href: "https://snowflake.torproject.org" }] },
+  { id: "int-robots", cluster: "interests", icon: "🤖", label: "robots for memory",
+    title: "Robots for memory care", sub: "orbit",
+    desc: "Reachy Mini as a companion for Alzheimer's patients — my side project reachy-memoire.",
+    chips: ["care robotics"], links: [{ label: "reachy-memoire →", href: "https://github.com/BelCorentin/reachy-memoire" }] },
+
+  /* ---- limbic system: passions ---- */
+  { id: "pas-sailing", cluster: "passions", icon: "⛵", label: "sailing",
+    title: "Sailing", sub: "the elements",
+    desc: "Reading wind, water and a boat's answer to both. The original signal-processing problem.",
+    chips: ["wind", "water"], links: [] },
+  { id: "pas-foiling", cluster: "passions", icon: "🏄", label: "foiling",
+    title: "Foiling", sub: "the elements",
+    desc: "Flying a wing underwater. Laminar flow or instant humility.",
+    chips: ["hydrofoil"], links: [] },
+  { id: "pas-paragliding", cluster: "passions", icon: "🪂", label: "paragliding",
+    title: "Paragliding", sub: "the elements",
+    desc: "Thermals are invisible; you decode them from the glider's twitches. Sounds familiar.",
+    chips: ["air"], links: [] },
+  { id: "pas-cooking", cluster: "passions", icon: "🍳", label: "cooking",
+    title: "Cooking", sub: "the elements",
+    desc: "The one experimental pipeline where n=8 dinner guests is a big sample.",
+    chips: ["n=8"], links: [] },
+
+  /* ---- terra incognita: easter eggs (meta only, nothing biographical) ---- */
+  { id: "egg-edge", cluster: "egg", icon: "🌊", label: "?",
+    title: "the edge of the map", sub: "terra incognita",
+    desc: "You found the edge of the map — nothing out here but sea and wind.",
+    chips: [], links: [] },
+  { id: "egg-zoom", cluster: "egg", icon: "🔭", label: "?",
+    title: "keep zooming out", sub: "terra incognita",
+    desc: "Neurons, brains, people, planets — every map is a node in a bigger one. Keep zooming out.",
+    chips: [], links: [{ label: "the lab →", href: "https://lab.corentinbel.com" }] },
+  { id: "egg-redraw", cluster: "egg", icon: "🎲", label: "?",
+    title: "no two wanderers", sub: "terra incognita",
+    desc: "This map rewires itself on every visit — no two wanderers see the same brain. Yours is already gone.",
+    chips: [], links: [] },
+];
+
+/* [a, b, kind] — kind: intra | cross | egg */
+const EDGES = [
+  /* prefrontal archive: chronological chain */
+  ["tl-inria", "tl-crnl", "intra"],
+  ["tl-crnl", "tl-lgc", "intra"],
+  ["tl-lgc", "tl-neurospin", "intra"],
+  ["tl-neurospin", "tl-neuralk", "intra"],
+  ["tl-neuralk", "tl-phd", "intra"],
+  /* language cortex: word-decoding lineage around the Nat Comms hub */
+  ["pub-natcomms", "pub-arxiv723", "intra"],
+  ["pub-natcomms", "pub-sentences", "intra"],
+  ["pub-natcomms", "pub-neuralset", "intra"],
+  /* motor cortex */
+  ["proj-downthewind", "proj-wind", "intra"],
+  ["proj-neuralset", "proj-reachy", "intra"],
+  /* association cortex */
+  ["int-socialweb", "int-openportability", "intra"],
+  ["int-openportability", "int-snowflake", "intra"],
+  ["int-psychedelics", "int-robots", "intra"],
+  ["int-psychedelics", "int-socialweb", "intra"],
+  /* limbic system */
+  ["pas-sailing", "pas-foiling", "intra"],
+  ["pas-foiling", "pas-paragliding", "intra"],
+  ["pas-cooking", "pas-sailing", "intra"],
+  /* cross-cluster shortcuts — the fun ones */
+  ["pas-foiling", "proj-downthewind", "cross"],   // foil downwind runs
+  ["pas-sailing", "proj-wind", "cross"],          // reading wind models before sailing
+  ["proj-reachy", "int-robots", "cross"],         // same robot, project ↔ question
+  ["pub-neuralset", "proj-neuralset", "cross"],   // the paper ↔ the tooling
+  ["tl-phd", "pub-natcomms", "cross"],            // the thesis ↔ its flagship paper
+  ["tl-neurospin", "pub-arxiv723", "cross"],      // MEG years ↔ 723-participant study
+  ["tl-crnl", "pub-natcomms", "cross"],           // first decoding ↔ word decoding
+  ["tl-phd", "proj-neuralset", "cross"],          // Meta AI collab ↔ facebookresearch tooling
+  ["pas-paragliding", "tl-phd", "cross"],         // decoding invisible signals, both
+  ["int-psychedelics", "tl-phd", "cross"],        // inner experience, measured
+  /* single faint threads to the periphery */
+  ["pas-sailing", "egg-edge", "egg"],
+  ["pas-paragliding", "egg-zoom", "egg"],
+  ["int-socialweb", "egg-redraw", "egg"],
+];
+
+const TOTAL_MEMORIES = NODES.length;
+const NODE_BY_ID = {};
+for (const n of NODES) NODE_BY_ID[n.id] = n;
+const ADJ = {};
+for (const n of NODES) ADJ[n.id] = [];
+for (const [a, b] of EDGES) { ADJ[a].push(b); ADJ[b].push(a); }
+
+function spawnCandidates() {
+  return NODES.filter(n => n.cluster !== "egg").map(n => n.id);
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Seeded organic layout: cluster anchors on a jittered ring, force
+   relaxation inside, then a hard separation pass (guarantees MIN_DIST). */
+const CLUSTER_ORDER = ["timeline", "pubs", "projects", "interests", "passions"];
+function buildLayout(seed) {
+  const rnd = mulberry32(seed >>> 0);
+  const pos = {};
+  const anchors = {};
+  const a0 = rnd() * TAU;
+  CLUSTER_ORDER.forEach((c, i) => {
+    const ang = a0 + i * TAU / CLUSTER_ORDER.length + (rnd() - 0.5) * 0.6;
+    const r = 520 * (0.82 + rnd() * 0.36);
+    anchors[c] = { x: Math.cos(ang) * r, y: Math.sin(ang) * r };
+  });
+  const main = NODES.filter(n => n.cluster !== "egg");
+  for (const n of main) {
+    const a = anchors[n.cluster], ang = rnd() * TAU, r = 40 + rnd() * 190;
+    pos[n.id] = { x: a.x + Math.cos(ang) * r, y: a.y + Math.sin(ang) * r };
+  }
+  for (let it = 0; it < 220; it++) {
+    // pairwise repulsion
+    for (let i = 0; i < main.length; i++) for (let j = i + 1; j < main.length; j++) {
+      const p = pos[main[i].id], q = pos[main[j].id];
+      let dx = q.x - p.x, dy = q.y - p.y;
+      let d = Math.hypot(dx, dy);
+      if (d < 1e-6) { const a = rnd() * TAU; dx = Math.cos(a); dy = Math.sin(a); d = 1; }
+      if (d < 260) {
+        const f = Math.min(8, 2600 / (d * d)), ux = dx / d, uy = dy / d;
+        p.x -= ux * f; p.y -= uy * f; q.x += ux * f; q.y += uy * f;
+      }
+    }
+    // springs along edges (eggs placed later)
+    for (const [ea, eb, kind] of EDGES) {
+      if (kind === "egg") continue;
+      const p = pos[ea], q = pos[eb];
+      const rest = kind === "cross" ? 430 : 165;
+      const k = kind === "cross" ? 0.0025 : 0.012;
+      const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
+      const f = (d - rest) * k, ux = dx / d, uy = dy / d;
+      p.x += ux * f; p.y += uy * f; q.x -= ux * f; q.y -= uy * f;
+    }
+    // gentle pull to cluster anchor keeps clusters coherent
+    for (const n of main) {
+      const p = pos[n.id], a = anchors[n.cluster];
+      p.x += (a.x - p.x) * 0.004; p.y += (a.y - p.y) * 0.004;
+    }
+  }
+  // eggs: far periphery, outward along their single tether's direction
+  for (const n of NODES) {
+    if (n.cluster !== "egg") continue;
+    const e = EDGES.find(e => e[0] === n.id || e[1] === n.id);
+    const other = e[0] === n.id ? e[1] : e[0];
+    const q = pos[other];
+    const len = Math.hypot(q.x, q.y) || 1;
+    const ux = q.x / len, uy = q.y / len;
+    const R = 1450 + rnd() * 420, perp = (rnd() - 0.5) * 500;
+    pos[n.id] = { x: ux * R - uy * perp, y: uy * R + ux * perp };
+  }
+  // hard separation: no two nodes closer than MIN_DIST
+  const ids = NODES.map(n => n.id);
+  for (let pass = 0; pass < 400; pass++) {
+    let moved = false;
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const p = pos[ids[i]], q = pos[ids[j]];
+      let dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+      if (d < MIN_DIST) {
+        moved = true;
+        let ux, uy;
+        if (d < 1e-6) { const a = rnd() * TAU; ux = Math.cos(a); uy = Math.sin(a); }
+        else { ux = dx / d; uy = dy / d; }
+        const push = (MIN_DIST - d) / 2 + 0.5;
+        p.x -= ux * push; p.y -= uy * push; q.x += ux * push; q.y += uy * push;
+      }
+    }
+    if (!moved) break;
+  }
+  return pos;
+}
+
+/* Node test harness hook (no window in Node) */
+if (typeof window === "undefined" && typeof module !== "undefined") {
+  module.exports = { CLUSTERS, NODES, EDGES, ADJ, NODE_BY_ID, TOTAL_MEMORIES, MIN_DIST, buildLayout, spawnCandidates, mulberry32 };
+}
+if (typeof document !== "undefined") init();
+
+/* ============================== runtime ============================== */
+function init() {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const seed = (Math.random() * 0xffffffff) >>> 0; // non-deterministic per visit: wanted
+  const POS = buildLayout(seed);
+
+  const scene = document.getElementById("scene");
+  const ctx = scene.getContext("2d");
+  const mini = document.getElementById("minimap");
+  const mtx = mini.getContext("2d");
+  const cntEl = document.getElementById("cnt");
+  document.getElementById("tot").textContent = TOTAL_MEMORIES;
+
+  let dpr = 1, vw = 0, vh = 0;
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    vw = scene.clientWidth; vh = scene.clientHeight;
+    scene.width = Math.round(vw * dpr); scene.height = Math.round(vh * dpr);
+    mini.width = Math.round(mini.clientWidth * dpr); mini.height = Math.round(mini.clientHeight * dpr);
+  }
+  addEventListener("resize", resize); resize();
+
+  /* ---------- state ---------- */
+  const explored = new Set();
+  const ghosts = new Set();
+  const appearT = new Map();  // id -> time it became visible (fade-in)
+  const toasted = new Set();
+  const pulses = [];          // {ax,ay,bx,by,t0,dur}
+  const particles = [];       // {ei,u,dir,speed}
+  let selectedId = null, hoverId = null;
+  let camAnim = null;
+
+  const candidates = spawnCandidates();
+  const spawnId = candidates[Math.floor(Math.random() * candidates.length)];
+  const sp = POS[spawnId];
+  const cam = { x: sp.x, y: sp.y, z: reduced ? 1 : 1.8 };
+
+  // world bbox (static, for minimap + fit)
+  let bb = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 };
+  for (const n of NODES) {
+    const p = POS[n.id];
+    bb.x0 = Math.min(bb.x0, p.x); bb.y0 = Math.min(bb.y0, p.y);
+    bb.x1 = Math.max(bb.x1, p.x); bb.y1 = Math.max(bb.y1, p.y);
+  }
+  bb.x0 -= 120; bb.y0 -= 120; bb.x1 += 120; bb.y1 += 120;
+
+  // starfield for the unexplored void (seeded, world-space)
+  const srnd = mulberry32(seed ^ 0x9e3779b9);
+  const stars = [];
+  for (let i = 0; i < 240; i++) {
+    const a = srnd() * TAU, r = Math.sqrt(srnd()) * 2400;
+    stars.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, s: 0.6 + srnd() * 1.4, ph: srnd() * TAU, sp: 0.4 + srnd() });
+  }
+
+  function now() { return performance.now(); }
+
+  function markVisible(id) { if (!appearT.has(id)) appearT.set(id, now()); }
+
+  function explore(id, silent) {
+    const first = !explored.has(id);
+    if (first) {
+      explored.add(id); ghosts.delete(id); markVisible(id);
+      cntEl.textContent = explored.size;
+      for (const nb of ADJ[id]) if (!explored.has(nb) && !ghosts.has(nb)) { ghosts.add(nb); markVisible(nb); }
+      checkClusterToast(NODE_BY_ID[id].cluster);
+    }
+    if (!silent && !reduced) {
+      const p = POS[id];
+      for (const nb of ADJ[id]) {
+        const q = POS[nb];
+        pulses.push({ ax: p.x, ay: p.y, bx: q.x, by: q.y, t0: now(), dur: 650 });
+      }
+    }
+  }
+
+  function checkClusterToast(cluster) {
+    if (toasted.has(cluster)) return;
+    const members = NODES.filter(n => n.cluster === cluster);
+    if (members.every(n => explored.has(n.id))) {
+      toasted.add(cluster);
+      if (!reduced) showToast(cluster === "egg"
+        ? "🌌 terra incognita mapped — there be dragons"
+        : "⚡ " + CLUSTERS[cluster].name + " mapped");
+    }
+  }
+
+  /* initial reveal */
+  if (reduced) {
+    for (const n of NODES) { explored.add(n.id); appearT.set(n.id, 0); }
+    for (const c in CLUSTERS) toasted.add(c);
+    cntEl.textContent = explored.size;
+    const bw = bb.x1 - bb.x0, bh = bb.y1 - bb.y0;
+    cam.x = (bb.x0 + bb.x1) / 2; cam.y = (bb.y0 + bb.y1) / 2;
+    cam.z = Math.max(0.12, Math.min(vw / bw, vh / bh) * 0.92);
+  } else {
+    explore(spawnId, true);
+    camAnim = { x0: sp.x, y0: sp.y, z0: 1.8, x1: sp.x, y1: sp.y, z1: 0.55, t0: now(), dur: 1600 };
+  }
+
+  /* ---------- toast ---------- */
+  const toastEl = document.getElementById("toast");
+  const toastQ = [];
+  let toastBusy = false;
+  function showToast(msg) {
+    toastQ.push(msg);
+    if (!toastBusy) nextToast();
+  }
+  function nextToast() {
+    const msg = toastQ.shift();
+    if (msg === undefined) { toastBusy = false; return; }
+    toastBusy = true;
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(() => {
+      toastEl.classList.remove("show");
+      setTimeout(nextToast, 420);
+    }, 2600);
+  }
+
+  /* ---------- card ---------- */
+  const card = document.getElementById("card");
+  function openCard(node) {
+    selectedId = node.id;
+    const c = CLUSTERS[node.cluster];
+    card.querySelector("#cardCluster .dot").style.background = c.color;
+    document.getElementById("cardClusterName").textContent = c.name;
+    document.getElementById("cardTitle").innerHTML =
+      '<span class="em">' + node.icon + "</span>" + node.title;
+    document.getElementById("cardSub").textContent = node.sub;
+    document.getElementById("cardDesc").innerHTML = node.desc;
+    document.getElementById("cardChips").innerHTML =
+      node.chips.map(ch => '<span class="chip">' + ch + "</span>").join("");
+    document.getElementById("cardLinks").innerHTML =
+      node.links.map(l => '<a href="' + l.href + '" target="_blank" rel="noopener">' + l.label + "</a>").join("");
+    card.classList.add("open");
+    card.focus({ preventScroll: true });
+  }
+  function closeCard() {
+    selectedId = null;
+    card.classList.remove("open");
+  }
+  document.getElementById("cardClose").addEventListener("click", closeCard);
+  addEventListener("keydown", e => { if (e.key === "Escape") closeCard(); });
+
+  /* ---------- lost? ---------- */
+  document.getElementById("lostBtn").addEventListener("click", () => {
+    let best = null, bd = Infinity;
+    for (const id of ghosts) {
+      const p = POS[id];
+      const d = Math.hypot(p.x - cam.x, p.y - cam.y);
+      if (d < bd) { bd = d; best = id; }
+    }
+    if (!best) { showToast("every memory mapped — nothing left but the sea"); return; }
+    const p = POS[best];
+    if (reduced) { cam.x = p.x; cam.y = p.y; }
+    else camAnim = { x0: cam.x, y0: cam.y, z0: cam.z, x1: p.x, y1: p.y, z1: Math.max(cam.z, 0.7), t0: now(), dur: 900 };
+  });
+
+  /* ---------- camera & input ---------- */
+  const Z_MIN = 0.12, Z_MAX = 2.8;
+  function w2s(x, y) { return [(x - cam.x) * cam.z + vw / 2, (y - cam.y) * cam.z + vh / 2]; }
+  function s2w(x, y) { return [(x - vw / 2) / cam.z + cam.x, (y - vh / 2) / cam.z + cam.y]; }
+
+  function nodeScreenR(n) {
+    const base = n.cluster === "egg" ? 13 : 16;
+    return Math.max(5, Math.min(26, base * cam.z));
+  }
+  function hitTest(sx, sy) {
+    let best = null, bd = Infinity;
+    for (const n of NODES) {
+      if (!explored.has(n.id) && !ghosts.has(n.id)) continue;
+      const [x, y] = w2s(POS[n.id].x, POS[n.id].y);
+      const d = Math.hypot(sx - x, sy - y);
+      if (d < Math.max(nodeScreenR(n), 18) && d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+
+  const pointers = new Map();
+  let dragging = false, dragMoved = 0, lastPX = 0, lastPY = 0;
+  let velX = 0, velY = 0, pinchD = 0;
+
+  scene.addEventListener("pointerdown", e => {
+    scene.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    camAnim = null;
+    if (pointers.size === 1) {
+      dragging = true; dragMoved = 0;
+      lastPX = e.clientX; lastPY = e.clientY;
+      velX = velY = 0;
+      scene.classList.add("dragging");
+    } else if (pointers.size === 2) {
+      const pts = [...pointers.values()];
+      pinchD = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    }
+  });
+  scene.addEventListener("pointermove", e => {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const pts = [...pointers.values()];
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
+      if (pinchD > 0) zoomAt(mx, my, d / pinchD);
+      pinchD = d;
+      dragMoved = 99;
+      return;
+    }
+    if (dragging) {
+      const dx = e.clientX - lastPX, dy = e.clientY - lastPY;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+      cam.x -= dx / cam.z; cam.y -= dy / cam.z;
+      velX = dx; velY = dy;
+      lastPX = e.clientX; lastPY = e.clientY;
+    } else {
+      const hit = hitTest(e.clientX, e.clientY);
+      hoverId = hit ? hit.id : null;
+      scene.style.cursor = hit ? "pointer" : "grab";
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchD = 0;
+    if (pointers.size === 0) {
+      scene.classList.remove("dragging");
+      if (dragging && dragMoved < 6) {
+        const hit = hitTest(e.clientX, e.clientY);
+        if (hit) { explore(hit.id); openCard(hit); }
+        else closeCard();
+        velX = velY = 0;
+      }
+      dragging = false;
+      if (reduced) velX = velY = 0;
+    }
+  }
+  scene.addEventListener("pointerup", endPointer);
+  scene.addEventListener("pointercancel", endPointer);
+
+  function zoomAt(sx, sy, factor) {
+    const [wx, wy] = s2w(sx, sy);
+    cam.z = Math.max(Z_MIN, Math.min(Z_MAX, cam.z * factor));
+    const [nx, ny] = s2w(sx, sy);
+    cam.x += wx - nx; cam.y += wy - ny;
+  }
+  scene.addEventListener("wheel", e => {
+    e.preventDefault();
+    camAnim = null;
+    zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0012));
+  }, { passive: false });
+
+  scene.addEventListener("keydown", e => {
+    const step = 60 / cam.z;
+    if (e.key === "ArrowLeft") { cam.x -= step; camAnim = null; }
+    else if (e.key === "ArrowRight") { cam.x += step; camAnim = null; }
+    else if (e.key === "ArrowUp") { cam.y -= step; camAnim = null; }
+    else if (e.key === "ArrowDown") { cam.y += step; camAnim = null; }
+    else if (e.key === "+" || e.key === "=") zoomAt(vw / 2, vh / 2, 1.15);
+    else if (e.key === "-" || e.key === "_") zoomAt(vw / 2, vh / 2, 1 / 1.15);
+    else return;
+    e.preventDefault();
+  });
+
+  /* ---------- helpers ---------- */
+  function hexA(hex, a) {
+    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+  function exploredEdgeIdxs() {
+    const out = [];
+    for (let i = 0; i < EDGES.length; i++) {
+      const [a, b] = EDGES[i];
+      if (explored.has(a) && explored.has(b)) out.push(i);
+    }
+    return out;
+  }
+
+  /* ---------- render ---------- */
+  function step(dt, t) {
+    if (camAnim) {
+      const u = Math.min(1, (t - camAnim.t0) / camAnim.dur), s = ease(u);
+      cam.x = camAnim.x0 + (camAnim.x1 - camAnim.x0) * s;
+      cam.y = camAnim.y0 + (camAnim.y1 - camAnim.y0) * s;
+      cam.z = camAnim.z0 + (camAnim.z1 - camAnim.z0) * s;
+      if (u >= 1) camAnim = null;
+    }
+    if (!dragging && !reduced && (Math.abs(velX) > 0.05 || Math.abs(velY) > 0.05)) {
+      cam.x -= velX / cam.z; cam.y -= velY / cam.z;
+      const k = Math.pow(0.92, dt / 16.7);
+      velX *= k; velY *= k;
+    }
+    if (!reduced) {
+      const eeis = exploredEdgeIdxs();
+      const target = Math.min(70, eeis.length * 3);
+      while (particles.length < target && eeis.length) {
+        particles.push({
+          ei: eeis[Math.floor(Math.random() * eeis.length)],
+          u: Math.random(), dir: Math.random() < 0.5 ? -1 : 1,
+          speed: 0.00006 + Math.random() * 0.00012,
+        });
+      }
+      for (const p of particles) {
+        p.u += p.speed * dt * p.dir;
+        if (p.u < 0 || p.u > 1) {
+          p.ei = eeis[Math.floor(Math.random() * eeis.length)];
+          p.u = p.dir > 0 ? 0 : 1;
+        }
+      }
+    }
+  }
+
+  function render(t) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, vw, vh);
+
+    // starfield in the void
+    for (const s of stars) {
+      const [x, y] = w2s(s.x, s.y);
+      if (x < -10 || x > vw + 10 || y < -10 || y > vh + 10) continue;
+      const tw = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(t * 0.001 * s.sp + s.ph);
+      ctx.fillStyle = "rgba(138,143,163," + (0.16 * tw).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(x, y, s.s * Math.max(0.5, cam.z * 0.7), 0, TAU); ctx.fill();
+    }
+
+    // edges: visible when at least one endpoint explored
+    for (const [a, b, kind] of EDGES) {
+      const aVis = explored.has(a), bVis = explored.has(b);
+      if (!aVis && !bVis) continue;
+      const p = POS[a], q = POS[b];
+      const [ax, ay] = w2s(p.x, p.y), [bx, by] = w2s(q.x, q.y);
+      const ca = CLUSTERS[NODE_BY_ID[a].cluster].color;
+      const cb = CLUSTERS[NODE_BY_ID[b].cluster].color;
+      const g = ctx.createLinearGradient(ax, ay, bx, by);
+      let alpha = kind === "egg" ? 0.10 : kind === "cross" ? 0.26 : 0.32;
+      if (!(aVis && bVis)) alpha *= 0.45; // frontier edge: fainter toward the ghost
+      g.addColorStop(0, hexA(ca, aVis ? alpha : alpha * 0.3));
+      g.addColorStop(1, hexA(cb, bVis ? alpha : alpha * 0.3));
+      ctx.strokeStyle = g;
+      ctx.lineWidth = kind === "cross" ? 1.1 : 1.3;
+      if (kind === "egg") ctx.setLineDash([3, 7]);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // signal pulses: teal → accent
+    for (let i = pulses.length - 1; i >= 0; i--) {
+      const pl = pulses[i];
+      const u = (t - pl.t0) / pl.dur;
+      if (u >= 1) { pulses.splice(i, 1); continue; }
+      const [ax, ay] = w2s(pl.ax, pl.ay), [bx, by] = w2s(pl.bx, pl.by);
+      const x = ax + (bx - ax) * u, y = ay + (by - ay) * u;
+      const tail = Math.max(0, u - 0.25);
+      const tx = ax + (bx - ax) * tail, ty = ay + (by - ay) * tail;
+      const g = ctx.createLinearGradient(tx, ty, x, y);
+      g.addColorStop(0, "rgba(140,238,221,0)");
+      g.addColorStop(1, "rgba(140,238,221," + (0.8 * (1 - u)).toFixed(3) + ")");
+      ctx.strokeStyle = g; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = "rgba(110,168,255," + (0.9 * (1 - u * 0.5)).toFixed(3) + ")";
+      ctx.shadowColor = "#6ea8ff"; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // thought-particles drifting along explored edges
+    if (!reduced) {
+      ctx.fillStyle = "rgba(140,238,221,.38)";
+      for (const p of particles) {
+        const e = EDGES[p.ei];
+        const a = POS[e[0]], b = POS[e[1]];
+        const [x, y] = w2s(a.x + (b.x - a.x) * p.u, a.y + (b.y - a.y) * p.u);
+        if (x < -5 || x > vw + 5 || y < -5 || y > vh + 5) continue;
+        ctx.beginPath(); ctx.arc(x, y, 1.4, 0, TAU); ctx.fill();
+      }
+    }
+
+    // nodes
+    const labelAlpha = Math.max(0, Math.min(1, (cam.z - 0.4) / 0.25));
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const n of NODES) {
+      const isExp = explored.has(n.id), isGhost = ghosts.has(n.id);
+      if (!isExp && !isGhost) continue;
+      const [x, y] = w2s(POS[n.id].x, POS[n.id].y);
+      if (x < -60 || x > vw + 60 || y < -60 || y > vh + 60) continue;
+      const r = nodeScreenR(n);
+      const born = appearT.get(n.id) || 0;
+      const fade = reduced ? 1 : Math.min(1, (t - born) / 420);
+      const color = CLUSTERS[n.cluster].color;
+
+      if (isGhost) {
+        const breathe = reduced ? 1 : 1 + 0.06 * Math.sin(t * 0.003 + POS[n.id].x);
+        ctx.globalAlpha = fade * 0.65;
+        ctx.fillStyle = "rgba(13,16,24,.7)";
+        ctx.strokeStyle = "rgba(138,143,163,.6)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(x, y, r * 0.75 * breathe, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "rgba(138,143,163,.9)";
+        ctx.font = "600 " + Math.max(9, r * 0.8) + "px ui-sans-serif,system-ui,sans-serif";
+        ctx.fillText("?", x, y + 0.5);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      // explored
+      ctx.globalAlpha = fade;
+      if (n.id === hoverId || n.id === selectedId) {
+        ctx.strokeStyle = hexA(color, 0.85); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y, r + 5, 0, TAU); ctx.stroke();
+      }
+      ctx.shadowColor = color; ctx.shadowBlur = 14;
+      ctx.fillStyle = hexA(color, 0.16);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = hexA(color, 0.8); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+      ctx.font = Math.max(10, r * 1.05) + "px ui-sans-serif,system-ui,sans-serif";
+      ctx.fillText(n.icon, x, y + 1);
+      if (labelAlpha > 0.02) {
+        ctx.globalAlpha = fade * labelAlpha;
+        ctx.fillStyle = "#c9c7bf";
+        ctx.font = "11px ui-sans-serif,system-ui,sans-serif";
+        ctx.fillText(n.label, x, y + r + 13);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    renderMinimap();
+  }
+
+  function renderMinimap() {
+    const mw = mini.clientWidth, mh = mini.clientHeight;
+    mtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mtx.clearRect(0, 0, mw, mh);
+    const bw = bb.x1 - bb.x0, bh = bb.y1 - bb.y0;
+    const s = Math.min(mw / bw, mh / bh);
+    const ox = (mw - bw * s) / 2, oy = (mh - bh * s) / 2;
+    const mm = (x, y) => [ox + (x - bb.x0) * s, oy + (y - bb.y0) * s];
+    for (const n of NODES) {
+      const isExp = explored.has(n.id), isGhost = ghosts.has(n.id);
+      if (!isExp && !isGhost) continue;
+      const [x, y] = mm(POS[n.id].x, POS[n.id].y);
+      mtx.fillStyle = isExp ? hexA(CLUSTERS[n.cluster].color, 0.9) : "rgba(138,143,163,.35)";
+      mtx.beginPath(); mtx.arc(x, y, isExp ? 2 : 1.3, 0, TAU); mtx.fill();
+    }
+    // viewport rect
+    const [vx0, vy0] = mm(cam.x - vw / 2 / cam.z, cam.y - vh / 2 / cam.z);
+    const [vx1, vy1] = mm(cam.x + vw / 2 / cam.z, cam.y + vh / 2 / cam.z);
+    mtx.strokeStyle = "rgba(232,230,223,.4)"; mtx.lineWidth = 1;
+    mtx.strokeRect(Math.max(0, vx0), Math.max(0, vy0),
+      Math.min(mw, vx1) - Math.max(0, vx0), Math.min(mh, vy1) - Math.max(0, vy0));
+  }
+
+  /* ---------- rAF loop, paused when tab hidden, dt clamped ---------- */
+  let rafId = null, last = now();
+  function frame(t) {
+    const dt = Math.min(50, t - last); last = t;
+    step(dt, t);
+    render(t);
+    rafId = requestAnimationFrame(frame);
+  }
+  function startLoop() { if (rafId === null) { last = now(); rafId = requestAnimationFrame(frame); } }
+  function stopLoop() { if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; } }
+  document.addEventListener("visibilitychange", () => document.hidden ? stopLoop() : startLoop());
+  startLoop();
+
+  /* ---------- accessible full list ---------- */
+  const body = document.getElementById("listAllBody");
+  const order = ["timeline", "pubs", "projects", "interests", "passions", "egg"];
+  body.innerHTML = order.map(c => {
+    const items = NODES.filter(n => n.cluster === c).map(n => {
+      const links = n.links.map(l => ' <a href="' + l.href + '" target="_blank" rel="noopener">' + l.label + "</a>").join("");
+      return "<li><b>" + n.icon + " " + n.title + "</b> — " + n.desc + links + "</li>";
+    }).join("");
+    return "<h3>" + CLUSTERS[c].name + "</h3><ul>" + items + "</ul>";
+  }).join("");
+}
+</script>
+</body>
+</html>
