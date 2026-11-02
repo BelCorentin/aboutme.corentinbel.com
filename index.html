@@ -125,6 +125,24 @@
   .xp, .card, .pub { position:relative; overflow:hidden; }
   .xp > *:not(.fx), .card > *:not(.fx), .pub > *:not(.fx) { position:relative; z-index:1; }
 
+  /* glass brain, top right of the hero */
+  #glassBrain { position:absolute; z-index:3; top:9vh; right:max(1rem, calc(50vw - 40rem)); width:min(34vw, 460px); aspect-ratio:1; pointer-events:none; }
+  #glassBrain canvas { width:100%; height:100%; display:block; }
+  #glassBrain .lbl { position:absolute; left:50%; bottom:2%; transform:translateX(-50%); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); white-space:nowrap; }
+  #glassBrain .lbl i { font-style:normal; transition:color .4s; }
+  #glassBrain .lbl i.on { color:#bfe6ff; }
+  @media (max-width: 900px) { #glassBrain { position:relative; top:auto; right:auto; width:min(78vw, 340px); margin:5rem auto -3rem; } #hero { padding-top:0; } }
+
+  /* photo strip */
+  #water { max-width:64rem; }
+  .photos { display:grid; grid-template-columns:repeat(4, 1fr); gap:.8rem; margin-top:1.6rem; }
+  .photos figure { position:relative; border-radius:14px; overflow:hidden; border:1px solid #232838; aspect-ratio:3/4; background:#0d0f16; }
+  .photos figure.wide { grid-column:span 2; aspect-ratio:auto; }
+  .photos img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .6s ease; }
+  .photos figure:hover img { transform:scale(1.04); }
+  .photos figcaption { position:absolute; left:0; right:0; bottom:0; padding:1.6rem .8rem .6rem; font-size:.78rem; color:#e8e6df; background:linear-gradient(transparent, rgba(7,8,12,.85)); }
+  @media (max-width: 700px) { .photos { grid-template-columns:1fr 1fr; } .photos figure.wide { grid-column:span 2; aspect-ratio:4/3; } }
+
   footer { position:relative; z-index:2; text-align:center; color:var(--faint); font-size:.85rem; padding:4rem 2rem 3rem; }
   footer .links { margin-bottom:.8rem; }
   footer .links a { margin:0 .8rem; }
@@ -155,6 +173,7 @@
 </svg>
 
 <section id="hero">
+  <div id="glassBrain" aria-hidden="true"><canvas id="brainCv"></canvas><div class="lbl"><i data-g="1">see</i> · <i data-g="2">hear</i> · <i data-g="3">speak</i></div></div>
   <div class="inner">
     <h2>Decoding the language of the <b>brain</b> —<br>and reading the <b>wind</b>.</h2>
     <p>Hi, I'm <b style="color:var(--fg)">Corentin Bel</b>. I'm a PhD researcher studying how
@@ -207,6 +226,18 @@
   <div class="cards" id="interestCards"></div>
 </section>
 
+<section id="water">
+  <div class="kicker">off the clock</div>
+  <h3>Mostly on the <b>water</b></h3>
+  <p class="lead">Downwind foiling on the Côte d'Azur, kites when the sea is gone.</p>
+  <div class="photos">
+    <figure><img src="img/foil-rocks.webp" alt="Foil board and wing rigged on the rocks above clear blue water" loading="lazy"><figcaption>rigged, waiting for the gusts</figcaption></figure>
+    <figure><img src="img/foil-carpet.webp" alt="Corentin carrying a foil board and wing on a red carpet" loading="lazy"><figcaption>red carpet, board on the shoulder</figcaption></figure>
+    <figure><img src="img/foil-cliffs.webp" alt="Downwind foil board standing against a fence above the sea and cliffs" loading="lazy"><figcaption>after the run</figcaption></figure>
+    <figure><img src="img/kite-saintmalo.webp" alt="Kite and mountainboard on the beach at Saint-Malo at low tide" loading="lazy"><figcaption>Saint-Malo: no water, still wind</figcaption></figure>
+  </div>
+</section>
+
 <section id="passions">
   <div class="kicker">the elements</div>
   <h3>Fluid dynamics, <b>applied</b></h3>
@@ -223,6 +254,105 @@
   corentinbel.com
 </footer>
 
+<script src="brain-mesh.js"></script>
+<script>
+/* ================= glass brain: fsaverage pial (ico5), additive fresnel glass, looks at the cursor =================
+   regions light up in a loop: occipital (see) → temporal (hear) → inferior frontal (speak) */
+(function () {
+  const cv = document.getElementById("brainCv"), M = window.BRAIN;
+  const gl = M && cv.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: true });
+  if (!gl) { document.getElementById("glassBrain").style.display = "none"; return; }
+  const b64 = (s, T) => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); };
+  const N = M.n;
+  const hemis = M.hemis.map(h => ({ pos: b64(h.pos, Int16Array), grp: b64(h.grp, Uint8Array), sulc: b64(h.sulc, Uint8Array), tri: b64(h.tri, Uint16Array) }));
+
+  // per-vertex soft masks for the three groups (blurred over the mesh so edges glow, not step)
+  function soft(h) {
+    const nb = Array.from({ length: N }, () => []);
+    for (let t = 0; t < h.tri.length; t += 3) { const a = h.tri[t], b = h.tri[t + 1], c = h.tri[t + 2]; nb[a].push(b, c); nb[b].push(a, c); nb[c].push(a, b); }
+    const out = new Float32Array(N * 3);
+    for (let g = 1; g <= 3; g++) {
+      let v = new Float32Array(N); for (let i = 0; i < N; i++) v[i] = h.grp[i] === g ? 1 : 0;
+      for (let k = 0; k < 4; k++) { const w = new Float32Array(N); for (let i = 0; i < N; i++) { let s = v[i] * 2; for (const j of nb[i]) s += v[j]; w[i] = s / (2 + nb[i].length); } v = w; }
+      for (let i = 0; i < N; i++) out[i * 3 + g - 1] = v[i];
+    }
+    return out;
+  }
+  function normals(P, tri) {
+    const n = new Float32Array(N * 3);
+    for (let t = 0; t < tri.length; t += 3) {
+      const a = tri[t] * 3, b = tri[t + 1] * 3, c = tri[t + 2] * 3;
+      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; }
+    }
+    for (let i = 0; i < N * 3; i += 3) { const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1; n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; }
+    return n;
+  }
+  const VS = `attribute vec3 aP; attribute vec3 aN; attribute vec3 aG; attribute float aS;
+    uniform mat3 uR; uniform float uScale, uAsp;
+    varying vec3 vN; varying vec3 vG; varying float vS; varying float vZ;
+    void main() {
+      vec3 p = uR * aP; vN = uR * aN; vG = aG; vS = aS; vZ = p.z;
+      float persp = 1.0 / (2.6 - p.z * .5);
+      gl_Position = vec4(p.x * uScale * persp * 2.2 / uAsp, p.y * uScale * persp * 2.2, 0.0, 1.0);
+    }`;
+  const FS = `precision mediump float;
+    varying vec3 vN; varying vec3 vG; varying float vS; varying float vZ;
+    uniform vec3 uAct;
+    void main() {
+      vec3 n = normalize(vN);
+      float facing = abs(n.z);
+      float rim = pow(1.0 - facing, 2.2);
+      vec3 glass = vec3(.55, .78, 1.0) * (rim * .55 + .035) * (1.0 - vS * .45);
+      vec3 act = vec3(1.0, .74, .32) * vG.x * uAct.x + vec3(.45, .95, 1.0) * vG.y * uAct.y + vec3(1.0, .45, .75) * vG.z * uAct.z;
+      float front = .55 + .45 * smoothstep(-1.0, 1.0, vZ);
+      gl_FragColor = vec4((glass + act * (.30 + rim * .5)) * front, 1.0);
+    }`;
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+  const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+  const loc = n => gl.getAttribLocation(prog, n), U = n => gl.getUniformLocation(prog, n);
+  const bufs = hemis.map(h => {
+    const P = new Float32Array(N * 3); for (let i = 0; i < N * 3; i++) P[i] = h.pos[i] / 32000;
+    const S = new Float32Array(N); for (let i = 0; i < N; i++) S[i] = h.sulc[i] / 255;
+    const mk = (data, target = gl.ARRAY_BUFFER) => { const b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, data, gl.STATIC_DRAW); return b; };
+    return { P: mk(P), Nn: mk(normals(P, h.tri)), G: mk(soft(h)), S: mk(S), I: mk(h.tri, gl.ELEMENT_ARRAY_BUFFER), n: h.tri.length };
+  });
+  gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  const bind = (b, name, size) => { gl.bindBuffer(gl.ARRAY_BUFFER, b); const l = loc(name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0); };
+
+  // the brain turns its frontal pole toward the pointer (FreeSurfer RAS: x right, y anterior, z up)
+  let tx = .35, ty = .1, cx = tx, cy = ty;
+  addEventListener("pointermove", e => { tx = (e.clientX / innerWidth - .5) * 1.2; ty = (e.clientY / innerHeight - .5) * .8; });
+  addEventListener("deviceorientation", e => { if (e.gamma != null) { tx = Math.max(-1, Math.min(1, e.gamma / 35)) * .6; ty = Math.max(-1, Math.min(1, (e.beta - 45) / 40)) * .4; } });
+  const lbl = [...document.querySelectorAll("#glassBrain .lbl i")];
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let t0 = performance.now();
+  function frame(now) {
+    const T = (now - t0) / 1000;
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+    gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    cx += (tx - cx) * .05; cy += (ty - cy) * .05;
+    const yaw = cx + Math.sin(T * .3) * .06, pitch = .08 - cy + Math.sin(T * .23) * .03;
+    // world RAS (x right, y anterior, z up) → view (X right, Y up, D toward the viewer), facing us:
+    // X = -cos·x + sin·y, D = sin·x + cos·y, Y = z; then pitch tips the front up or down
+    const cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const m = [-cyw, syw * sp, syw * cp,  syw, cyw * sp, cyw * cp,  0, cp, -sp];   // column-major
+    gl.uniformMatrix3fv(U("uR"), false, new Float32Array(m));
+    gl.uniform1f(U("uScale"), 1.0 + Math.sin(T * 1.1) * .012);
+    gl.uniform1f(U("uAsp"), cv.width / cv.height);
+    // a wave that travels see → hear → speak every 4.5 s
+    const ph = (T % 4.5) / 4.5, bump = c => Math.exp(-Math.pow(((ph - c + 1.5) % 1) - .5, 2) / .012);
+    const act = [bump(.15), bump(.45), bump(.72)].map(a => reduced ? .5 : a);
+    gl.uniform3f(U("uAct"), act[0] * 1.3, act[1] * 1.3, act[2] * 1.3);
+    lbl.forEach((el, i) => el.classList.toggle("on", act[i] > .5));
+    for (const b of bufs) { bind(b.P, "aP", 3); bind(b.Nn, "aN", 3); bind(b.G, "aG", 3); bind(b.S, "aS", 1); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.I); gl.drawElements(gl.TRIANGLES, b.n, gl.UNSIGNED_SHORT, 0); }
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
@@ -241,9 +371,9 @@ const TIMELINE = [
   { when: "2022–23 · CEA NeuroSpin", el: "mind", icon: "🧲", where: "MEG & language",
     what: "Joined the magnetically shielded rooms: language decoding from MEG, naturalistic stimuli.",
     chips: ["MEG", "language decoding", "naturalistic stimuli"] },
-  { when: "2023 · Neuralk AI", el: "air", icon: "🚀", where: "Startup ML engineering",
-    what: "Early-stage speed: building ML products when everything is on fire, pleasantly.",
-    chips: ["startup pace", "ML engineering", "0→1 products"] },
+  { when: "2023 · Neuralk AI", el: "air", icon: "🚀", where: "Agentic chatbots, before it was cool",
+    what: "The very first steps of the company: sitting with CEOs to work out what an AI agent could do for their business, then building it. Our chatbot called tools and acted on real company data, and it found traction before \"agents\" were a buzzword.",
+    chips: ["tool-using agents", "talking to CEOs", "0→1 products"] },
   { when: "2024–now · PhD — ENS-PSL × NeuroSpin (CEA) × Meta AI", el: "air", icon: "🎓", where: "Decoding covert & imagined speech",
     what: "The altitude view: how language is represented in brains vs LLMs, and what transfers between reading, listening and inner speech — in collaboration with Meta AI on large-scale MEG decoding.",
     chips: ["covert speech", "brains × LLMs", "Meta AI collaboration"] },
